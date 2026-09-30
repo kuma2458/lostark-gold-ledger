@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.0.0">
+<meta name="application-version" content="1.0.1">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -503,7 +503,7 @@
 
   // ---------- 상태 ----------
   var state = {
-    design: lsGet("design") === "classic" ? "classic" : "dashboard",
+    design: "dashboard",
     view: "ledger",
     accounts: [],
     baseTarget: DEFAULT_TARGET,
@@ -964,11 +964,6 @@
 
   // ---------- 액션 ----------
   window.__gl = {
-    toggleDesign: function () {
-      state.design = state.design === "dashboard" ? "classic" : "dashboard";
-      lsSet("design", state.design);
-      render();
-    },
     openBaseModal: function () {
       state.baseModalOpen = true;
       render();
@@ -1405,7 +1400,6 @@ var dashboardPortraits = [];
     html += '<div class="header">';
     html += '<div><div class="eyebrow">LOST ARK · 주간 골드 장부</div><h1 class="title">골드 장부</h1></div>';
     html += '<div style="display:flex;gap:8px">';
-    html += '<button class="base-btn" onclick="__gl.toggleDesign()">' + (state.design === "dashboard" ? '이전 디자인' : '새 디자인') + '</button>';
     html += '<button class="base-btn" onclick="__gl.openDataModal()">💾 데이터</button>';
     html += '<button class="base-btn" onclick="__gl.openBaseModal()">기본 목표 ' + fmtGold(state.baseTarget) + ' ⚙</button>';
     html += '</div>';
