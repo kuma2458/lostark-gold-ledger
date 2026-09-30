@@ -1,0 +1,11 @@
+# Only reviewed source files may enter Git.
+*
+!/.gitignore
+!/.gitattributes
+!/index.html
+!/README.md
+!/CHANGELOG.md
+!/VERSION
+!/scripts/
+!/scripts/check-release.cjs
+

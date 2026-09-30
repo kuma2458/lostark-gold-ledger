@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta name="application-version" content="1.0.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>골드 장부 · Lost Ark</title>
+<link rel="icon" href="data:,">
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+  :root {
+    --bg: #090a0f;
+    --panel: #13151f;
+    --panel-sub: #1a1d2b;
+    --panel-sub-2: #222638;
+    --border: #262a3b;
+    --border-hover: #3b425b;
+    --border-focus: #fbbf24;
+    --gold: #fbbf24;
+    --gold-deep: #d97706;
+    --rust: #fb7185;
+    --green: #34d399;
+    --cyan: #38bdf8;
+    --text: #f8fafc;
+    --text-muted: #7e8b9f;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; background-color: var(--bg); }
+  body { font-family: 'Noto Sans KR', sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  /* 헤더 */
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.12em; color: var(--gold); font-family: 'JetBrains Mono', monospace; font-weight: 700; margin-bottom: 4px; }
+  .title { font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -0.02em; color: #fff; }
+  .base-btn { background: var(--panel); border: 1px solid var(--border); color: var(--text-muted); border-radius: 999px; padding: 7px 14px; font-size: 12px; font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.2s; }
+  .base-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* 뷰 탭 */
+  .view-tabs { display: flex; gap: 8px; margin-bottom: 18px; background: var(--panel); padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .view-tab { flex: 1; text-align: center; padding: 10px; border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 13.5px; font-weight: 600; transition: all 0.2s; }
+  .view-tab.active { background: var(--panel-sub-2); color: var(--gold); font-weight: 700; }
+
+  /* 계정 칩 */
+  .account-row { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); background: var(--panel); cursor: pointer; transition: all 0.2s; }
+  .chip:hover { border-color: var(--border-hover); }
+  .chip.active { color: #090a0f; background: var(--gold); border-color: var(--gold); font-weight: 700; }
+  .chip .pencil { opacity: 0.6; font-size: 11px; padding: 1px 4px; border-radius: 999px; }
+  .chip .chip-del { opacity: 0.6; font-size: 13px; padding: 0 2px; border-radius: 999px; }
+  .chip.active .pencil, .chip.active .chip-del { opacity: 0.9; }
+  .chip-add { width: 30px; height: 30px; border-radius: 50%; border: 1px dashed var(--border-hover); color: var(--text-muted); background: transparent; cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .chip-add:hover { border-color: var(--gold); color: var(--gold); }
+  .rename-input { width: 76px; background: var(--bg); border: 1px solid #000; border-radius: 4px; color: var(--text); padding: 2px 6px; font-size: 12px; }
+
+  /* 카드 패널 */
+  .card-panel { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; }
+  .card-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; flex-wrap: wrap; gap: 6px; }
+  .card-header-label { font-size: 12.5px; color: var(--text-muted); font-weight: 500; }
+  .card-header-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text); }
+  .carry-stamp { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--rust); border: 1px solid var(--rust); border-radius: 999px; padding: 3px 10px; margin-bottom: 14px; background: rgba(251, 113, 133, 0.08); font-weight: 500; }
+
+  /* 스탯 그리드 */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; text-align: center; }
+  .stat-box { background: var(--panel-sub); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 6px; display: flex; flex-direction: column; justify-content: center; }
+  .stat-label { font-size: 11.5px; color: var(--text-muted); margin-bottom: 5px; }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; word-break: break-all; cursor: pointer; }
+  .inline-input { width: 90%; margin: 0 auto; background: var(--bg); border: 1px solid var(--border-focus); border-radius: 4px; color: var(--text); padding: 4px 6px; font-family: 'JetBrains Mono', monospace; font-size: 15px; text-align: center; }
+
+  /* 계정별 분배 */
+  .breakdown-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .breakdown-chip { font-size: 11.5px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); background: var(--panel-sub); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+  .breakdown-chip b { color: var(--gold); font-weight: 700; }
+  .wallet-summary { padding: 30px; border-radius: 24px; background: #121620; border-color: #29303d; box-shadow: 0 16px 48px rgba(0,0,0,.16); }
+  .wallet-summary, .wallet-account, .wallet-section-head { font-family: 'Noto Sans KR', 'Segoe UI', sans-serif; font-variant-numeric: lining-nums tabular-nums; }
+  .wallet-summary .card-header-val { font-family: inherit; color: #a6afc0; font-size: 12px; }
+  .wallet-total { margin: 20px 0; text-align: left; }
+  .wallet-total-label { color: var(--text-muted); font-size: 13px; }
+  .wallet-total-value { font-size: clamp(32px, 7vw, 40px); font-weight: 600; color: #f5d58b; letter-spacing: -0.035em; line-height: 1.3; margin: 6px 0 12px; overflow-wrap: anywhere; }
+  .wallet-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: #a6b1c3; font-size: 12px; }
+  .wallet-meta b { color: var(--text); font-weight: 500; }
+  .wallet-goals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .wallet-goals .stat-box { min-width: 0; padding: 16px 18px; text-align: left; border-radius: 12px; background: #191e2a; border-color: #2a3140; }
+  .wallet-goals .stat-label { font-size: 12px; color: #b1bdd0; margin-bottom: 7px; line-height: 1.5; }
+  .wallet-goals .stat-value { font-family: inherit; font-size: 26px; font-weight: 500; line-height: 1.35; letter-spacing: -0.035em; word-break: normal; overflow-wrap: anywhere; }
+  .wallet-goals .inline-input { font-family: inherit; font-size: 23px; border-radius: 8px; padding: 6px; }
+  .wallet-unit { font-size: .72em; font-weight: 500; margin-left: 1px; letter-spacing: 0; opacity: .9; }
+  .wallet-progress { height: 5px; border-radius: 99px; overflow: hidden; background: var(--bg); margin-top: 24px; }
+  .wallet-progress .bar-fill { background: #eac477; }
+  .wallet-progress-caption { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); margin-top: 8px; }
+  .wallet-section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 26px 0 16px; }
+  .wallet-section-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .wallet-section-head span { color: var(--text-muted); font-size: 11.5px; }
+  .wallet-accounts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: 24px; }
+  .wallet-account { display: grid; grid-template-columns: minmax(0,1fr) minmax(100px,auto); grid-template-rows: auto auto; column-gap: 18px; align-items: center; min-width: 0; padding: 16px 20px; text-align: left; border: 1px solid #293140; border-radius: 14px; background: #141923; transition: border-color .18s ease, background .18s ease; }
+  .wallet-account:hover, .wallet-account:focus-within { border-color: #736247; background: #191e28; }
+  .wallet-account-name { grid-column: 1; grid-row: 1; font-size: 14px; font-weight: 500; color: #e0e7f2; overflow-wrap: anywhere; }
+  .wallet-account-value { grid-column: 2; grid-row: 1 / 3; display: block; width: 100%; min-height: 44px; border: 0; background: transparent; padding: 3px 0 3px 12px; text-align: right; font: inherit; font-size: 28px; line-height: 1.3; letter-spacing: -0.035em; font-weight: 500; color: #f0f3f9; cursor: pointer; }
+  .wallet-account-value:hover { color: var(--gold); }
+  .wallet-account-value:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 3px; }
+  .wallet-account-edit { grid-column: 2; grid-row: 1 / 3; display: flex; align-items: center; justify-content: flex-end; gap: 5px; color: #b1bdd0; }
+  .wallet-account .items-target-input { width: 120px; max-width: 100%; min-height: 44px; font: inherit; font-size: 24px; text-align: right; padding: 3px 8px; border-radius: 8px; }
+  .wallet-account-note { grid-column: 1; grid-row: 2; font-size: 12px; color: #a6b1c3; margin-top: 5px; line-height: 1.5; }
+  .wallet-sales { border-radius: 20px; padding: 24px; }
+  .wallet-sales .wallet-section-head { margin-top: 0; }
+  .wallet-sales .entry-form { margin-bottom: 8px; }
+  .wallet-sales .unit-hint { margin: 0; line-height: 1.6; }
+  .wallet-sales .add-btn { background: var(--rust); }
+  .wallet-summary { padding: 24px; border-radius: 20px; }
+  .wallet-total-label, .wallet-progress-caption, .wallet-section-head span { color: #a6b1c3; }
+  .wallet-progress { margin-top: 18px; }
+  @media (max-width: 420px) { .wallet-summary { padding: 20px 16px; } .wallet-account { padding: 14px 16px; column-gap: 10px; } .wallet-account-value { font-size: 26px; } .wallet-goals { gap: 10px; } .wallet-goals .stat-box { padding: 14px 12px; } .wallet-goals .stat-value { font-size: 24px; } .wallet-section-head { flex-wrap: wrap; gap: 6px; } .wallet-sales { padding: 20px 16px; } }
+  @media (prefers-reduced-motion: reduce) { .wallet-account { transition: none; transform: none !important; } }
+
+  /* 게이지 바 & 인장 */
+  .bar-track { position: relative; height: 14px; background: var(--panel-sub); border-radius: 999px; border: 1px solid var(--border); margin-top: 6px; }
+  .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-deep), var(--gold)); transition: width 0.4s ease; }
+  .bar-seal { position: absolute; top: -12px; width: 38px; height: 38px; border-radius: 50%; background: var(--panel-sub-2); border: 2px solid var(--gold); color: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 700; transition: left 0.4s ease; }
+  .seal-pop { animation: sealPop 0.5s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes sealPop { 0% { transform: scale(1.5); } 60% { transform: scale(0.95); } 100% { transform: scale(1); } }
+  .complete-tag { margin-top: 14px; color: var(--green); font-size: 13px; font-weight: 600; text-align: center; }
+
+  /* 골드 입력 폼 */
+  .entry-form { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .type-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--panel); }
+  .type-btn { padding: 10px 14px; background: transparent; color: var(--text-muted); border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .type-btn.active { background: var(--gold); color: #090a0f; font-weight: 700; }
+  .type-btn.sell.active { background: var(--rust); color: #fff; }
+  .select-input { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 10px 12px; font-size: 13.5px; outline: none; }
+  .amount-input { flex: 1 1 140px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 14px; min-width: 0; outline: none; }
+  .amount-input:focus, .select-input:focus { border-color: var(--border-focus); }
+  .add-btn { flex: 0 0 auto; background: var(--gold); border: none; color: #090a0f; font-weight: 700; border-radius: var(--radius-sm); padding: 10px 18px; cursor: pointer; font-size: 13.5px; white-space: nowrap; transition: opacity 0.2s; }
+  .add-btn:hover { opacity: 0.9; }
+  .unit-hint { font-size: 11.5px; color: var(--text-muted); margin: -8px 0 16px 4px; }
+
+  /* 카드값 & 필요 골드 환산 영역 (강조 확대) */
+  .card-conversion-box { margin-top: 14px; padding: 16px 18px; background: var(--panel-sub); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .conversion-label { font-size: 13.5px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+  .conversion-value { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; color: var(--cyan); letter-spacing: -0.01em; line-height: 1.2; }
+  .rate-hint { font-size: 12px; color: var(--text-muted); margin-top: 10px; cursor: pointer; text-decoration: underline dotted; display: inline-block; }
+
+  /* 내역 섹션 */
+  .entries-section { margin-bottom: 26px; }
+  .section-label { font-size: 12.5px; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filter-chip { font-size: 12px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; background: var(--panel); }
+  .filter-chip.active { color: var(--gold); border-color: var(--gold); background: rgba(251, 191, 36, 0.1); }
+  .empty-row { color: var(--text-muted); font-size: 13.5px; padding: 14px 0; text-align: center; border-top: 1px solid var(--border); }
+  
+  .entry-row { display: grid; grid-template-columns: 46px auto 1fr 24px; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+  .entry-date { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .entry-account-tag { font-size: 11.5px; color: var(--gold); background: var(--panel-sub); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; }
+  .entry-amount { color: var(--gold); font-family: 'JetBrains Mono', monospace; font-weight: 700; cursor: pointer; text-align: right; font-size: 14px; }
+  .entry-amount.sell { color: var(--rust); }
+  .entry-edit-input { width: 90px; justify-self: end; background: var(--bg); border: 1px solid var(--gold); border-radius: 4px; color: var(--text); padding: 4px 6px; font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; }
+  .del-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; text-align: right; transition: color 0.2s; }
+  .del-btn:hover { color: var(--rust); }
+
+  /* 히스토리 섹션 */
+  .history-section { margin-bottom: 20px; }
+  .history-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .history-period { font-size: 12.5px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; min-width: 130px; }
+  .history-nums { display: flex; gap: 12px; font-size: 12.5px; font-family: 'JetBrains Mono', monospace; }
+  .badge { font-size: 11.5px; border-radius: 999px; padding: 3px 10px; font-family: 'JetBrains Mono', monospace; font-weight: 600; white-space: nowrap; }
+  .badge-ok { color: var(--green); border: 1px solid var(--green); background: rgba(52, 211, 153, 0.08); }
+  .badge-miss { color: var(--rust); border: 1px solid var(--rust); background: rgba(251, 113, 133, 0.08); }
+  .more-btn { width: 100%; margin-top: 12px; background: transparent; border: 1px dashed var(--border); color: var(--text-muted); border-radius: var(--radius-sm); padding: 9px 0; cursor: pointer; font-size: 12.5px; }
+
+  /* 아이템 계산기 */
+  .items-summary-box { padding: 16px; background: var(--panel-sub); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 16px; }
+  .items-summary-label { font-size: 12.5px; color: var(--text-muted); margin-bottom: 4px; }
+  .items-summary-value { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .items-target-input { width: 150px; background: var(--bg); border: 1px solid var(--gold); border-radius: 6px; color: var(--text); padding: 7px 9px; font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; outline: none; }
+  .items-target-value { color: var(--gold); cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }
+  .goal-summary-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-top: 12px; color: var(--text-muted); font-size: 12px; }
+  .goal-summary-line .goal-amount { color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .goal-summary-line .goal-remaining { color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; }
+  .goal-progress-track { height: 6px; margin-top: 8px; overflow: hidden; background: var(--bg); border-radius: 999px; }
+  .goal-progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold-deep), var(--gold)); border-radius: inherit; transition: width 0.3s ease; }
+  .items-needed-box { margin: 14px 0 16px; padding: 14px; background: var(--panel-sub); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .items-needed-title { font-size: 12.5px; font-weight: 700; margin-bottom: 10px; }
+  .items-needed-row { display: grid; grid-template-columns: minmax(0, 1fr) 82px 100px 100px; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); font-size: 12.5px; }
+  .items-needed-row:first-of-type { border-top: none; }
+  .items-needed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .items-needed-num { font-family: 'JetBrains Mono', monospace; text-align: right; white-space: nowrap; }
+  .items-needed-positive { color: var(--gold); font-weight: 700; }
+  .item-list-head { display: grid; grid-template-columns: 1fr 74px 68px 100px 24px; gap: 8px; font-size: 11px; color: var(--text-muted); padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .item-row { display: grid; grid-template-columns: 1fr 74px 68px 100px 24px; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+  .item-name { color: var(--text); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-price { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); cursor: pointer; text-align: right; }
+  .item-qty-input { width: 100%; background: var(--panel-sub); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; outline: none; }
+  .item-total { font-family: 'JetBrains Mono', monospace; color: var(--gold); font-weight: 700; text-align: right; }
+  .item-edit-input { width: 100%; background: var(--bg); border: 1px solid var(--gold); border-radius: 6px; color: var(--text); padding: 4px 6px; font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; }
+  .item-name-input { width: 100%; background: var(--bg); border: 1px solid var(--gold); border-radius: 6px; color: var(--text); padding: 4px 6px; font-size: 13px; }
+  .add-item-btn { width: 100%; margin-top: 12px; background: transparent; border: 1px dashed var(--border); color: var(--text-muted); border-radius: var(--radius-sm); padding: 10px 0; cursor: pointer; font-size: 12.5px; }
+
+  /* 모달 & 에러바 */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .modal { background: var(--panel-sub); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; width: 100%; max-width: 320px; max-height: 85vh; overflow-y: auto; }
+  .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .modal-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 10px 12px; font-size: 15px; font-family: 'JetBrains Mono', monospace; margin-bottom: 14px; outline: none; }
+  .modal-row { display: flex; gap: 10px; justify-content: flex-end; }
+  .ghost-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted); border-radius: var(--radius-sm); padding: 8px 14px; cursor: pointer; font-size: 13px; }
+  .gold-btn { background: var(--gold); border: none; color: #090a0f; font-weight: 700; border-radius: var(--radius-sm); padding: 8px 16px; cursor: pointer; font-size: 13px; }
+  .error-bar { background: rgba(251, 113, 133, 0.15); border: 1px solid var(--rust); color: var(--text); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; }
+  .sync-msg { background: rgba(52, 211, 153, 0.12); border: 1px solid var(--green); color: var(--text); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; }
+  .footer-note { text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 32px; line-height: 1.6; }
+
+  /* 데이터 관리 모달 */
+  .data-modal { max-width: 380px; max-height: 85vh; overflow-y: auto; }
+  .data-section { padding: 14px 0; border-top: 1px solid var(--border); }
+  .data-section:first-of-type { border-top: none; padding-top: 0; }
+  .data-section-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .data-section-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+  .data-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .data-btn { background: var(--panel-sub-2); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); padding: 8px 14px; cursor: pointer; font-size: 12.5px; }
+  .data-btn:hover { border-color: var(--gold); }
+.dashboard-theme{--ark-bg:#121316;--ark-panel:#1c1e23;--ark-surface:#23262d;--ark-line:#30333c;--ark-text:#f0f1f5;--ark-sub:#9da3b2;--ark-gold:#f4c55a;--ark-green:#73d6b0;--ark-radius:10px;background:var(--ark-bg);color:var(--ark-text);font:14px/1.45 Pretendard,'Segoe UI',sans-serif;border:1px solid var(--ark-line);border-radius:14px;color-scheme:dark;overflow:clip;box-sizing:border-box}
+.dashboard-theme *{box-sizing:border-box}
+.dashboard-theme button,.dashboard-theme input,.dashboard-theme select{font:inherit}
+.dashboard-theme h1,.dashboard-theme h2,.dashboard-theme p{margin:0}
+.dashboard-theme button{cursor:inherit}
+.dashboard-theme .ar-top{min-height:68px;background:#1a1b1f;border-bottom:1px solid var(--ark-line);display:flex;align-items:center;gap:34px;padding:0 26px}
+.dashboard-theme .ar-brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;letter-spacing:-.6px;white-space:nowrap}
+.dashboard-theme .ar-brand i{color:var(--ark-gold)}
+.dashboard-theme .ar-brand b{color:var(--ark-gold)}
+.dashboard-theme .ar-tabs{display:flex;align-self:stretch;gap:26px;align-items:center;color:var(--ark-sub);font-size:13px}
+.dashboard-theme .ar-tabs span{height:100%;display:flex;align-items:center;position:relative}
+.dashboard-theme .ar-tabs .ar-current{color:var(--ark-text);font-weight:600}
+.dashboard-theme .ar-current:after{content:'';height:2px;background:var(--ark-gold);position:absolute;bottom:0;left:0;right:0}
+.dashboard-theme .ar-preview{margin-left:auto;font-size:11px;color:var(--ark-sub);border:1px solid var(--ark-line);padding:4px 8px;border-radius:5px;white-space:nowrap}
+.dashboard-theme .ar-main{padding:24px 26px 18px}
+.dashboard-theme .ar-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.dashboard-theme .ar-heading h1{font-size:21px;font-weight:650;letter-spacing:-.7px}
+.dashboard-theme .ar-period{display:flex;align-items:center;gap:8px;color:#c6cad5;background:var(--ark-panel);border:1px solid var(--ark-line);padding:8px 11px;border-radius:6px;font-size:12px}
+.dashboard-theme .ar-summary{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:12px}
+.dashboard-theme .ar-metric{padding:17px 20px;background:var(--ark-panel);border:1px solid var(--ark-line);border-radius:var(--ark-radius);position:relative;min-width:0}
+.dashboard-theme .ar-metric:first-child{background:linear-gradient(110deg,#302b1f,#202023 75%);border-color:#514532}
+.dashboard-theme .ar-label{display:flex;align-items:center;gap:7px;color:#bdc2ce;font-size:12px}
+.dashboard-theme .ar-label i{opacity:.8}
+.dashboard-theme .ar-number{font-size:32px;font-weight:650;letter-spacing:-1px;margin-top:8px;line-height:1.2;font-variant-numeric:tabular-nums}
+.dashboard-theme .ar-number small{font-size:16px;font-weight:500;margin-left:3px}
+.dashboard-theme .ar-metric:first-child .ar-number{color:var(--ark-gold)}
+.dashboard-theme .ar-metric:last-child .ar-number{color:var(--ark-green)}
+.dashboard-theme .ar-caption{font-size:11px;color:var(--ark-sub);margin-top:7px}
+.dashboard-theme .ar-body{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:18px;margin-top:25px;align-items:start}
+.dashboard-theme .ar-sectionhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;min-height:24px}
+.dashboard-theme .ar-sectionhead h2{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.dashboard-theme .ar-count{font-size:11px;color:var(--ark-sub);font-weight:400}
+.dashboard-theme .ar-hint{font-size:11px;color:var(--ark-sub)}
+.dashboard-theme .ar-accounts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dashboard-theme .ar-account{--ar-color:#bd99ee;display:grid;grid-template-columns:78px minmax(0,1fr);gap:14px;padding:15px;background:linear-gradient(115deg,color-mix(in srgb,var(--ar-color) 7%,var(--ark-panel)),var(--ark-panel) 65%);border:1px solid var(--ark-line);border-radius:var(--ark-radius);position:relative;transition:border-color .15s,background .15s;min-width:0}
+.dashboard-theme .ar-account[data-id="1"]{--ar-color:#d9b56c}
+.dashboard-theme .ar-account[data-id="2"]{--ar-color:#bac9d6}
+.dashboard-theme .ar-account[data-id="3"]{--ar-color:#a6a6eb}
+.dashboard-theme .ar-account:hover,.dashboard-theme .ar-account:focus-within{border-color:color-mix(in srgb,var(--ar-color) 60%,var(--ark-line))}
+.dashboard-theme .ar-portrait{position:relative;width:78px;height:108px;background:#16191e;overflow:hidden;border-radius:7px;border:1px solid color-mix(in srgb,var(--ar-color) 50%,var(--ark-line))}
+.dashboard-theme .ar-portrait img{display:block;position:absolute;width:340%;height:auto;max-width:none;left:-120%;top:-37%}
+.dashboard-theme [data-id="0"] .ar-portrait img{top:-74%}
+.dashboard-theme [data-id="1"] .ar-portrait img{top:-31%}
+.dashboard-theme [data-id="3"] .ar-portrait img{width:266%;left:-84%;top:-1.6%}
+.dashboard-theme .ar-profile{display:flex;flex-direction:column;justify-content:center;min-width:0}
+.dashboard-theme .ar-name{display:flex;gap:6px;align-items:center;font-size:15px;font-weight:600;color:#f0f1f5;white-space:nowrap}
+.dashboard-theme .ar-dot{width:5px;height:5px;border-radius:50%;background:var(--ar-color);flex-shrink:0}
+.dashboard-theme .ar-balance{display:flex;align-items:baseline;gap:3px;background:none;border:0;padding:0;text-align:left;color:#f3f4f8;font-size:29px;font-weight:600;letter-spacing:-1px;min-height:44px;margin:6px 0 0;font-variant-numeric:tabular-nums}
+.dashboard-theme .ar-balance small{font-size:14px;font-weight:400;color:#b8bfce;letter-spacing:0}
+.dashboard-theme .ar-balance i{align-self:center;margin-left:auto;color:#717b8d;opacity:.7}
+.dashboard-theme .ar-carry{font-size:11px;color:var(--ark-sub);white-space:nowrap}
+.dashboard-theme .ar-carry b{font-weight:500;color:#bdc3d0;margin-left:5px}
+.dashboard-theme .ar-inline{width:100%;min-width:0;font-size:23px;margin:7px 0 3px;padding:3px;border:1px solid var(--ar-color);border-radius:4px;background:#111317;color:#fff;min-height:38px}
+.dashboard-theme .ar-ledgerfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;margin-top:12px;background:#191b20;border:1px solid #2c3038;border-radius:7px;font-size:12px;color:#c2c7d2}
+.dashboard-theme .ar-ledgerfoot span{display:flex;align-items:center;gap:7px}
+.dashboard-theme .ar-ledgerfoot i{color:var(--ark-green)}
+.dashboard-theme .ar-sale{background:var(--ark-panel);border:1px solid var(--ark-line);border-radius:var(--ark-radius);overflow:hidden}
+.dashboard-theme .ar-salehead{padding:16px 18px;border-bottom:1px solid var(--ark-line);display:flex;align-items:center;justify-content:space-between}
+.dashboard-theme .ar-salehead h2{font-size:14px;font-weight:600}
+.dashboard-theme .ar-salehead i{color:var(--ark-gold)}
+.dashboard-theme .ar-form{padding:18px}
+.dashboard-theme .ar-form label{display:block;font-size:12px;color:#bcc3cf;margin-bottom:8px}
+.dashboard-theme .ar-form select{background:#14161b;color:#e1e5ed;border:1px solid #373c47;border-radius:6px;padding:10px 11px;width:100%;margin-bottom:18px;min-height:42px}
+.dashboard-theme .ar-inputbox{display:flex;align-items:center;border:1px solid #424855;border-radius:6px;background:#14161b;padding:7px 12px;margin-bottom:15px}
+.dashboard-theme .ar-inputbox:focus-within{border-color:var(--ark-gold)}
+.dashboard-theme .ar-inputbox input{background:none;border:0;color:#f1f3f8;width:100%;min-width:0;font-size:25px;font-weight:500;padding:2px 0;outline-offset:4px;appearance:textfield}
+.dashboard-theme .ar-inputbox input::-webkit-inner-spin-button{appearance:none}
+.dashboard-theme .ar-inputbox span{font-size:12px;color:var(--ark-sub);white-space:nowrap}
+.dashboard-theme .ar-submit{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:43px;border:0;border-radius:6px;background:var(--ark-gold);color:#252014;font-weight:650}
+.dashboard-theme .ar-formnote{margin-top:11px;font-size:11px;color:var(--ark-sub);line-height:1.6}
+.dashboard-theme .ar-salesum{border-top:1px solid var(--ark-line);background:#191b20;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--ark-sub)}
+.dashboard-theme .ar-salesum strong{font-size:14px;font-weight:500;color:#e2e6ee}
+.dashboard-theme .ar-bottom{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:18px;font-size:11px;color:#9098a8}
+.dashboard-theme .ar-status{color:var(--ark-green)}
+@media(max-width:860px){.dashboard-theme .ar-body{grid-template-columns:minmax(0,1fr) 240px;gap:14px}.dashboard-theme .ar-account{grid-template-columns:60px minmax(0,1fr);gap:10px;padding:12px}.dashboard-theme .ar-portrait{width:60px;height:92px}.dashboard-theme .ar-balance{font-size:26px}.dashboard-theme .ar-carry b{margin-left:2px}.dashboard-theme .ar-accounts{gap:9px}.dashboard-theme .ar-main{padding:20px}.dashboard-theme .ar-metric{padding:16px}}
+@media(max-width:700px){.dashboard-theme .ar-body{grid-template-columns:1fr}.dashboard-theme .ar-account{grid-template-columns:78px minmax(0,1fr);padding:15px}.dashboard-theme .ar-portrait{width:78px;height:108px}.dashboard-theme .ar-top{gap:24px;padding:0 18px}.dashboard-theme .ar-preview{display:none}.dashboard-theme .ar-sale{margin-top:6px}}
+@media(max-width:420px){.dashboard-theme .ar-top{flex-wrap:wrap;gap:0;min-height:92px;padding-top:12px}.dashboard-theme .ar-brand{width:100%;font-size:16px}.dashboard-theme .ar-tabs{min-height:40px;font-size:12px}.dashboard-theme .ar-main{padding:18px 14px}.dashboard-theme .ar-heading{flex-wrap:wrap}.dashboard-theme .ar-heading h1{font-size:19px}.dashboard-theme .ar-summary{grid-template-columns:1fr 1fr;gap:8px}.dashboard-theme .ar-metric:first-child{grid-column:1/-1}.dashboard-theme .ar-number{font-size:29px}.dashboard-theme .ar-accounts{grid-template-columns:1fr}.dashboard-theme .ar-account{grid-template-columns:70px minmax(0,1fr)}.dashboard-theme .ar-portrait{width:70px;height:92px}.dashboard-theme .ar-sectionhead{flex-wrap:wrap}.dashboard-theme .ar-ledgerfoot{flex-wrap:wrap}.dashboard-theme .ar-period{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.dashboard-theme .ar-account{transition:none}}
+
+  .wrap.dashboard-theme { max-width:1080px; margin:24px auto; padding:24px 26px 40px; --bg:#121316; --panel:#1c1e23; --panel-sub:#23262d; --panel-sub-2:#292d36; --border:#30333c; --text-muted:#9da3b2; --gold:#f4c55a; --green:#73d6b0; --text:#f0f1f5; overflow:visible; }
+  .dashboard-theme .header {margin:0 0 12px}
+  .dashboard-theme .eyebrow {display:none}
+  .dashboard-theme .title {font:700 20px Pretendard,sans-serif;color:var(--gold)}
+  .dashboard-theme .base-btn {font:12px Pretendard,sans-serif;border-radius:6px;padding:9px 12px}
+  .dashboard-theme .view-tabs {background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:0;margin-bottom:16px;gap:24px}
+  .dashboard-theme .view-tab {flex:0 0 auto;padding:12px 0;border-radius:0}
+  .dashboard-theme .view-tab.active {background:transparent;border-bottom:2px solid var(--gold)}
+  .dashboard-theme .account-manager {margin-bottom:18px;color:var(--text-muted);font-size:12px}
+  .dashboard-theme .account-manager summary {cursor:pointer;padding:7px 0}
+  .dashboard-theme .account-manager .account-row {margin:10px 0 0}
+  .dashboard-theme .ar-body {margin-bottom:24px}
+  .dashboard-theme .ar-target {display:block;border:0;background:transparent;color:inherit;text-align:left;padding:0;cursor:pointer;font:inherit;font-size:32px;font-weight:650;margin-top:8px;letter-spacing:-1px;line-height:1.2}
+  .dashboard-theme .ar-target .wallet-unit,.dashboard-theme .ar-number .wallet-unit {font-size:16px;margin-left:3px}
+  .dashboard-theme .ar-balance .wallet-unit {font-size:14px;font-weight:400;color:#b8bfce}
+  .dashboard-theme .ar-inline {display:block;font-family:inherit}
+  .dashboard-theme .ar-metric .inline-input {width:100%;text-align:left;margin:8px 0 0;font-family:inherit;font-size:26px}
+  .dashboard-theme .ar-portrait.fallback {display:grid;place-items:center;color:var(--ar-color);font-size:24px}
+  .dashboard-theme .ar-unassigned {grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;padding:14px;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:12px}
+  .dashboard-theme .card-panel {border-radius:10px}
+  .dashboard-theme .stat-value,.dashboard-theme .card-header-val {font-family:inherit}
+  .dashboard-theme .ar-submit,.dashboard-theme .ar-balance {cursor:pointer}
+  .dashboard-theme .ar-form {margin:0}
+  .dashboard-theme .ar-name,.dashboard-theme .ar-carry {white-space:normal;overflow-wrap:anywhere}
+  .dashboard-theme .ar-balance {overflow-wrap:anywhere;flex-wrap:wrap}
+  @media(max-width:600px){.wrap.dashboard-theme{margin:0;border:0;border-radius:0;padding:20px 14px}.dashboard-theme .header>div:last-child{flex-wrap:wrap}.dashboard-theme .stats-grid{gap:6px}.dashboard-theme .stat-value{font-size:16px}}
+  /* Dashboard secondary panels; classic design stays unchanged. */
+  .dashboard-theme .billing-panel {display:grid;grid-template-columns:minmax(0,1.8fr) minmax(230px,1fr);gap:18px;padding:20px;margin-top:6px}
+  .dashboard-theme .billing-panel .card-header-row {grid-column:1/-1;margin:0}
+  .dashboard-theme .billing-panel .card-header-label {font-size:14px;font-weight:600;color:var(--text)}
+  .dashboard-theme .billing-panel .stats-grid {margin:0;gap:10px;align-items:stretch}
+  .dashboard-theme .billing-panel .stat-box {text-align:left;padding:16px;min-width:0;background:#202329;border-radius:7px;align-items:flex-start}
+  .dashboard-theme .billing-panel .stat-label {font-size:12px;margin-bottom:12px}
+  .dashboard-theme .billing-panel .stat-value {font-size:22px;font-weight:600;letter-spacing:-.6px;word-break:normal;overflow-wrap:anywhere;line-height:1.35}
+  .dashboard-theme .billing-panel .inline-input {font:20px Pretendard,sans-serif;text-align:left;width:100%;margin:0}
+  .dashboard-theme .billing-panel .card-conversion-box {margin:0;padding:16px 18px;background:#18252b;border-color:#2b424e;border-radius:7px}
+  .dashboard-theme .conversion-label {font-size:12px;color:#aec2cc}
+  .dashboard-theme .conversion-value {font-family:inherit;font-size:28px;font-weight:600;letter-spacing:-.7px;color:#81cce5}
+  .dashboard-theme .rate-hint {font-size:11px;margin-top:8px;line-height:1.6}
+  .dashboard-theme .entries-section,.dashboard-theme .history-section {padding:20px;border:1px solid var(--border);background:var(--panel);border-radius:10px;margin:18px 0}
+  .dashboard-theme .section-label {font-family:inherit;font-size:14px;font-weight:600;letter-spacing:0;color:var(--text);margin-bottom:16px}
+  .dashboard-theme .entry-date,.dashboard-theme .entry-amount,.dashboard-theme .entry-edit-input,.dashboard-theme .history-period,.dashboard-theme .history-nums {font-family:inherit;font-variant-numeric:tabular-nums}
+  .dashboard-theme .entry-row {padding:14px 2px;font-size:13px;grid-template-columns:50px minmax(0,1fr) auto 26px}
+  .dashboard-theme .entry-account-tag {border-radius:5px;color:#ccd2de;background:#252932;border-color:#363c47;font-size:11px;display:inline-block;overflow-wrap:anywhere}
+  .dashboard-theme .entry-amount {font-size:15px;font-weight:600}
+  .dashboard-theme .filter-chip {border-radius:6px;font-size:12px;padding:6px 11px}
+  .dashboard-theme .filter-chip.active {color:var(--gold);background:#332c1e;border-color:#695333}
+  .dashboard-theme .history-columns,.dashboard-theme .history-row {display:grid;grid-template-columns:minmax(160px,1fr) minmax(240px,1.4fr) 110px;gap:18px;align-items:center}
+  .dashboard-theme .history-columns {padding:10px 12px;background:#22252c;border-radius:6px;font-size:11px;color:var(--text-muted)}
+  .dashboard-theme .history-columns span:last-child {text-align:right}
+  .dashboard-theme .history-row {padding:16px 12px}
+  .dashboard-theme .history-period {min-width:0;font-size:12px;color:#c9ced9}
+  .dashboard-theme .history-nums {display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px}
+  .dashboard-theme .history-row .badge {justify-self:end;font-family:inherit;font-size:11px;border-radius:5px;white-space:nowrap;padding:4px 8px}
+  .dashboard-theme .badge-ok {background:#1d352e;color:#8edab9;border-color:#345f50}
+  .dashboard-theme .badge-miss {background:#36262b;color:#f1a2b0;border-color:#65404a}
+  .dashboard-theme .empty-row {padding:28px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)}
+  .dashboard-theme .more-btn,.dashboard-theme .add-item-btn {font-family:inherit;border-radius:6px;border:1px solid var(--border);background:#242830;color:#d4d9e4;padding:11px;font-size:12px}
+  .dashboard-theme .item-calculator {padding:20px;background:var(--panel)}
+  .dashboard-theme .items-summary-box {padding:20px;background:linear-gradient(110deg,#302b1f,#202023 75%);border-color:#514532;border-radius:8px;margin-bottom:18px}
+  .dashboard-theme .items-summary-label {font-size:12px;color:#c7bdab;margin-bottom:10px}
+  .dashboard-theme .items-summary-value {font:600 26px/1.5 Pretendard,sans-serif;letter-spacing:-.6px;color:var(--gold);word-break:keep-all;overflow-wrap:anywhere}
+  .dashboard-theme .goal-summary-line {font-family:inherit;gap:8px;font-size:12px;color:#bbc0cb;flex-wrap:wrap;margin-top:14px}
+  .dashboard-theme .items-target-value {font-family:inherit;font-size:14px;color:#f1f3f8}
+  .dashboard-theme .items-target-input {font-family:inherit;font-size:16px}
+  .dashboard-theme .goal-amount {color:#e3e6ed;font-family:inherit}
+  .dashboard-theme .goal-remaining {color:var(--green);font-family:inherit}
+  .dashboard-theme .goal-progress-track {height:4px;margin-top:14px;background:#38352d}
+  .dashboard-theme .goal-progress-fill {background:var(--gold)}
+  .dashboard-theme .items-needed-box {padding:16px 18px;background:#191b20;border-radius:8px;margin:18px 0 22px}
+  .dashboard-theme .items-needed-title {font-size:13px;font-weight:600;line-height:1.7;margin-bottom:12px}
+  .dashboard-theme .items-needed-title>span {font-size:11px;display:block}
+  .dashboard-theme .items-needed-row {grid-template-columns:minmax(140px,1fr) 100px 170px 110px;padding:13px 0;font-size:12px;gap:14px}
+  .dashboard-theme .items-needed-name {white-space:normal;overflow-wrap:anywhere}
+  .dashboard-theme .items-needed-num {font-family:inherit;font-variant-numeric:tabular-nums}
+  .dashboard-theme .items-needed-positive {color:var(--gold);font-size:14px}
+  .dashboard-theme .item-list-head,.dashboard-theme .item-row {grid-template-columns:minmax(150px,1fr) 130px 100px 160px 28px;gap:16px}
+  .dashboard-theme .item-list-head {background:#24272f;border-radius:6px;padding:11px 14px;font-size:11px;color:#aeb6c5;font-family:inherit}
+  .dashboard-theme .item-row {padding:15px 14px}
+  .dashboard-theme .item-name {font-size:13px;font-weight:500;white-space:normal;overflow-wrap:anywhere}
+  .dashboard-theme .item-price,.dashboard-theme .item-total {font-family:inherit;font-size:15px;font-weight:500;letter-spacing:-.3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .dashboard-theme .item-price {color:#c8ced9}
+  .dashboard-theme .item-total {color:var(--gold)}
+  .dashboard-theme .item-qty-input,.dashboard-theme .item-edit-input,.dashboard-theme .item-name-input {font-family:inherit;font-size:14px;min-width:0;width:100%;background:#14161b;border:1px solid #3a414f;border-radius:6px;padding:9px;color:var(--text)}
+  .dashboard-theme .item-qty-input:focus,.dashboard-theme .item-edit-input:focus {border-color:var(--gold)}
+  .dashboard-theme .del-btn {width:26px;height:30px;border-radius:5px}
+  .dashboard-theme .data-btn {font-family:inherit;border-radius:6px}
+  @media(max-width:850px){.dashboard-theme .billing-panel{grid-template-columns:1fr}.dashboard-theme .billing-panel .card-conversion-box{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 12px}.dashboard-theme .billing-panel .rate-hint{grid-column:1/-1;margin-top:0}.dashboard-theme .items-needed-row{grid-template-columns:minmax(120px,1fr) 80px 145px 90px;gap:8px}.dashboard-theme .item-list-head,.dashboard-theme .item-row{grid-template-columns:minmax(110px,1fr) 85px 70px 110px 24px;gap:10px}}
+  @media(max-width:650px){.dashboard-theme .history-columns{display:none}.dashboard-theme .history-row{grid-template-columns:minmax(0,1fr) auto;gap:10px}.dashboard-theme .history-nums{grid-column:1/-1;grid-row:2;max-width:340px}.dashboard-theme .history-row .badge{grid-column:2;grid-row:1}.dashboard-theme .items-needed-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.dashboard-theme .items-needed-name{grid-column:1;grid-row:1}.dashboard-theme .items-needed-num:nth-child(2){grid-column:2;grid-row:1}.dashboard-theme .items-needed-num:nth-child(3){grid-column:1;grid-row:2;text-align:left;font-size:11px}.dashboard-theme .items-needed-num:nth-child(4){grid-column:2;grid-row:2}.dashboard-theme .item-list-head{display:none}.dashboard-theme .item-row{grid-template-columns:minmax(50px,1fr) 60px minmax(70px,1fr) 24px;gap:10px}.dashboard-theme .item-row .item-name,.dashboard-theme .item-row .item-name-input{grid-column:1/-1}.dashboard-theme .item-price:before{content:'개당가격';display:block;color:var(--text-muted);font-size:10px;font-weight:400}.dashboard-theme .item-total:before{content:'합계';display:block;color:var(--text-muted);font-size:10px;font-weight:400}.dashboard-theme .item-calculator,.dashboard-theme .entries-section,.dashboard-theme .history-section{padding:16px}.dashboard-theme .items-summary-value{font-size:21px}.dashboard-theme .items-summary-box{padding:16px}.dashboard-theme .billing-panel .stat-box{padding:12px}.dashboard-theme .billing-panel .stat-value{font-size:19px}}
+  @media(max-width:380px){.dashboard-theme .billing-panel{padding:16px}.dashboard-theme .billing-panel .stats-grid{grid-template-columns:1fr}.dashboard-theme .billing-panel .stat-box{flex-direction:row;justify-content:space-between;align-items:center;gap:12px}.dashboard-theme .billing-panel .stat-label{margin:0}.dashboard-theme .billing-panel .card-conversion-box{grid-template-columns:1fr}.dashboard-theme .item-row{padding:14px 0}.dashboard-theme .items-needed-box{padding:12px}.dashboard-theme .entry-row{gap:7px;font-size:12px}}
+  .dashboard-theme .ar-period {font-size:15px;font-weight:500;line-height:1.5}
+  .dashboard-theme .history-period {font-size:14px;font-weight:500;line-height:1.5}
+  .dashboard-theme .entry-date {font-size:14px;font-weight:500;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input id="import-file-input" type="file" accept="application/json" style="display:none" onchange="__gl.handleImportFile(event)">
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_PREFIX = "lag_";
+  var DEFAULT_TARGET = 0;
+  var DEFAULT_RATE = 1000;
+  var DEFAULT_ACCOUNTS = [
+    { id: "a1", name: "계정 1" },
+    { id: "a2", name: "계정 2" },
+    { id: "a3", name: "계정 3" },
+    { id: "a4", name: "계정 4" }
+  ];
+
+  // ---------- 유틸 ----------
+  function computeWeekStart(date) {
+    var d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    var day = d.getDay();
+    var diff = (day - 3 + 7) % 7;
+    d.setDate(d.getDate() - diff);
+    return d;
+  }
+  function addDays(date, n) {
+    var d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
+  }
+  function fmtKey(date) {
+    var y = date.getFullYear();
+    var m = String(date.getMonth() + 1).padStart(2, "0");
+    var d = String(date.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + d;
+  }
+  function fmtShort(date) {
+    return (date.getMonth() + 1) + "/" + date.getDate() + "(" + "일월화수목금토"[date.getDay()] + ")";
+  }
+  function fmtNum(n) {
+    return Math.round(n || 0).toLocaleString("ko-KR");
+  }
+  function fmtWalletGold(n) {
+    return fmtGold(n).replace(/만$/, '<span class="wallet-unit">만</span>');
+  }
+  function fmtGold(n) {
+    var v = (n || 0) / 10000;
+    var s = v.toFixed(2).replace(/\.?0+$/, "");
+    if (s === "" || s === "-") s = "0";
+    return s + "만";
+  }
+  function parseManInput(str) {
+    if (!str) return 0;
+    var normalized = String(str).replace(/[０-９]/g, function (ch) {
+      return String.fromCharCode(ch.charCodeAt(0) - 0xfee0);
+    });
+    var cleaned = normalized.replace(/[^0-9.]/g, "");
+    if (!cleaned) return 0;
+    var val = parseFloat(cleaned);
+    if (isNaN(val)) return 0;
+    return Math.round(val * 10000);
+  }
+  function manValueForInput(n) {
+    var v = (n || 0) / 10000;
+    var s = v.toFixed(2).replace(/\.?0+$/, "");
+    if (s === "" || s === "-") s = "0";
+    return s;
+  }
+  function parseIntInput(str) {
+    if (!str) return 0;
+    var normalized = String(str).replace(/[０-９]/g, function (ch) {
+      return String.fromCharCode(ch.charCodeAt(0) - 0xfee0);
+    });
+    var digits = normalized.replace(/[^0-9]/g, "");
+    return digits ? parseInt(digits, 10) : 0;
+  }
+  function fmtWon(n) {
+    return Math.round(n || 0).toLocaleString("ko-KR") + "원";
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---------- localStorage ----------
+  function lsGet(key) {
+    try {
+      var v = localStorage.getItem(STORAGE_PREFIX + key);
+      return v ? JSON.parse(v) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function lsSet(key, val) {
+    try {
+      localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
+      return true;
+    } catch (e) {
+      state.error = "저장에 실패했습니다. 브라우저 저장 공간을 확인해주세요.";
+      return false;
+    }
+  }
+
+  // ---------- 상태 ----------
+  var state = {
+    design: lsGet("design") === "classic" ? "classic" : "dashboard",
+    view: "ledger",
+    accounts: [],
+    baseTarget: DEFAULT_TARGET,
+    itemTarget: 0,
+    weekKey: "",
+    weekStart: null,
+    weekEnd: null,
+    weekTarget: 0,
+    weekCarry: 0,
+    weekCarriedEarned: 0,
+    weekCarriedByAccount: {},
+    entries: [],
+    history: [],
+    filterAccount: "all",
+    entryType: "sell",
+    exchangeRate: DEFAULT_RATE,
+    rateModalOpen: false,
+    cardBill: 0,
+    editingCardBill: false,
+    cashOnHand: 0,
+    editingCash: false,
+    sheetUrl: "",
+    syncMsg: "",
+    lastSheetSyncAt: 0,
+    dataModalOpen: false,
+    baseModalOpen: false,
+    itemPriceApiKey: "",
+    itemPriceUpdateInterval: 60,
+    itemPriceLastUpdated: 0,
+    itemPriceUpdating: false,
+    itemPriceError: "",
+    editingTarget: false,
+    editingCarriedAccountId: null,
+    editingItemTarget: false,
+    renamingId: null,
+    editingEntryId: null,
+    showAllHistory: false,
+    items: [],
+    renamingItemId: null,
+    editingItemPriceId: null,
+    error: "",
+    justCompleted: false
+  };
+
+  function totalEarned(entries) {
+    return (entries || []).reduce(function (s, e) { return s + (e.type === "sell" ? 0 : e.amount); }, 0);
+  }
+  function totalSold(entries) {
+    return (entries || []).reduce(function (s, e) { return s + (e.type === "sell" ? e.amount : 0); }, 0);
+  }
+  function effectiveWeekTarget(target, entries) {
+    return Math.max(0, (target || 0) - totalSold(entries));
+  }
+  function totalWeekEarned(carriedEarned, entries) {
+    return (carriedEarned || 0) + totalEarned(entries) - totalSold(entries);
+  }
+  function accountEarned(entries, accId) {
+    return (entries || []).filter(function (e) { return e.accountId === accId; })
+      .reduce(function (s, e) { return s + (e.type === "sell" ? 0 : e.amount); }, 0);
+  }
+  function totalAccountEarned(carriedByAccount, entries, accId) {
+    var sales = totalSold((entries || []).filter(function (e) { return e.accountId === accId; }));
+    return ((carriedByAccount || {})[accId] || 0) + accountEarned(entries, accId) - sales;
+  }
+  function recordAccountBalance(accountId, balance) {
+    var current = totalAccountEarned(state.weekCarriedByAccount, state.entries, accountId);
+    var difference = balance - current;
+    if (difference === 0) return;
+    state.entries = [{
+      id: String(Date.now()) + Math.random().toString(16).slice(2, 6),
+      accountId: accountId, type: "earn", amount: difference,
+      balanceUpdate: true, date: new Date().toISOString()
+    }].concat(state.entries);
+    saveCurrentWeek();
+  }
+  function nextCarriedByAccount(carriedByAccount, entries) {
+    var result = Object.assign({}, carriedByAccount || {});
+    (entries || []).forEach(function (e) {
+      result[e.accountId] = (result[e.accountId] || 0) + (e.type === "sell" ? -e.amount : (e.amount || 0));
+    });
+    return result;
+  }
+
+  function loadAccounts() {
+    var accs = lsGet("accounts");
+    if (!accs || !Array.isArray(accs) || accs.length === 0) {
+      accs = DEFAULT_ACCOUNTS.slice();
+      lsSet("accounts", accs);
+    }
+    return accs;
+  }
+  function loadSettings() {
+    var s = lsGet("settings") || {};
+    var defaults = { baseTarget: DEFAULT_TARGET, itemTarget: 0, exchangeRate: DEFAULT_RATE, cardBill: 0, cashOnHand: 0, sheetUrl: "", lastSheetSyncAt: 0, itemPriceApiKey: "", itemPriceUpdateInterval: 60, itemPriceLastUpdated: 0 };
+    Object.keys(defaults).forEach(function (k) {
+      if (s[k] === undefined || s[k] === null) s[k] = defaults[k];
+    });
+    lsSet("settings", s);
+    return s;
+  }
+  function getWeek(key) { return lsGet("week_" + key); }
+  function setWeek(key, data) { lsSet("week_" + key, data); }
+
+  var DEFAULT_ITEMS = [
+    { id: "i1", name: "상급 아비도스 융화 재료", price: 0, qty: 0 },
+    { id: "i2", name: "4티어 8레벨 보석", price: 0, qty: 0 }
+  ];
+  function loadItems() {
+    var it = lsGet("items");
+    if (!it || !Array.isArray(it) || it.length === 0) {
+      it = DEFAULT_ITEMS.slice();
+      lsSet("items", it);
+    } else {
+      // 기존 사용자의 아이템 목록은 그대로 유지하면서 새 계산 대상만 추가
+      // 기존에 겁화/작열로 나뉘어 저장된 데이터는 하나의 "4티어 8레벨 보석"으로 통합
+      var gemBurn = it.find(function (cur) { return cur.id === "i2" || cur.name === "4티어 8레벨 겁화 보석"; });
+      var gemHeat = it.find(function (cur) { return cur.id === "i3" || cur.name === "4티어 8레벨 작열 보석"; });
+      if (gemBurn || gemHeat) {
+        var mergedGem = gemBurn || gemHeat;
+        mergedGem.id = "i2";
+        mergedGem.name = "4티어 8레벨 보석";
+        mergedGem.qty = (gemBurn ? (gemBurn.qty || 0) : 0) + (gemHeat ? (gemHeat.qty || 0) : 0);
+        if (!(mergedGem.price > 0) && gemHeat && gemHeat.price > 0) mergedGem.price = gemHeat.price;
+        it = it.filter(function (cur) { return cur !== gemBurn && cur !== gemHeat; });
+        it.push(mergedGem);
+      }
+      DEFAULT_ITEMS.forEach(function (def) {
+        if (!it.some(function (cur) { return cur.id === def.id; })) it.push(def);
+      });
+      it.forEach(function (cur) {
+        if (cur.id === "i1" && cur.name === "상급 아비도스 융화재료") cur.name = "상급 아비도스 융화 재료";
+      });
+      lsSet("items", it);
+    }
+    return it;
+  }
+  function saveItems() { lsSet("items", state.items); scheduleSheetSync(); }
+  function fmtItemGold(n) { return Math.round(n || 0).toLocaleString("ko-KR") + "G"; }
+  function fmtItemWon(n) { return Math.round(n || 0).toLocaleString("ko-KR") + "원"; }
+  function goldToWon(gold) { return ((gold || 0) / 10000) * (state.exchangeRate || DEFAULT_RATE); }
+  function itemsGrandTotal(overrideId, overrideQty) {
+    return state.items.reduce(function (s, it) {
+      var q = it.id === overrideId ? overrideQty : (it.qty || 0);
+      return s + q * (it.price || 0);
+    }, 0);
+  }
+  function itemsRemainingWon() {
+    return Math.max(0, (state.itemTarget || 0) - goldToWon(itemsGrandTotal(null, 0)));
+  }
+  function itemNeededQty(price) {
+    var remainingWon = itemsRemainingWon();
+    if (remainingWon <= 0) return 0;
+    if (!(price > 0) || !(state.exchangeRate > 0)) return null;
+    var itemWonValue = goldToWon(price);
+    return itemWonValue > 0 ? Math.ceil(remainingWon / itemWonValue) : null;
+  }
+
+  function parseApiNumber(v) {
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+  function apiHeaders() {
+    return {
+      "accept": "application/json",
+      "authorization": "bearer " + state.itemPriceApiKey,
+      "content-type": "application/json;charset=UTF-8"
+    };
+  }
+  async function fetchMarketUnitPrice(itemName) {
+    var res = await fetch("https://developer-lostark.game.onstove.com/markets/items", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ Sort: "GRADE", CategoryCode: 50000, ItemName: itemName, PageNo: 1, SortCondition: "ASC" })
+    });
+    if (!res.ok) throw new Error("시장 API " + res.status);
+    var data = await res.json();
+    var items = data.Items || [];
+    var normalizedName = String(itemName || "").replace(/\s/g, "");
+    var exact = items.filter(function (x) { return String(x.Name || "").replace(/\s/g, "") === normalizedName; });
+    var item = exact[0];
+    if (!item) throw new Error("아이템을 찾지 못했습니다");
+    var price = parseApiNumber(item.CurrentMinPrice);
+    var bundle = parseApiNumber(item.BundleCount) || 1;
+    if (!(price > 0)) throw new Error("현재 최저가가 없습니다");
+    return price / bundle;
+  }
+  async function fetchGemUnitPrice() {
+    var res = await fetch("https://developer-lostark.game.onstove.com/auctions/items", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ Sort: "BUY_PRICE", CategoryCode: 210000, ItemTier: 4, ItemName: "8레벨", PageNo: 1, SortCondition: "ASC" })
+    });
+    if (!res.ok) throw new Error("경매장 API " + res.status);
+    var data = await res.json();
+    var prices = (data.Items || []).map(function (x) {
+      var ai = x.AuctionInfo || {};
+      return parseApiNumber(ai.BuyPrice);
+    }).filter(function (v) { return v != null && v > 0; });
+    if (!prices.length) throw new Error("8레벨 보석 매물이 없습니다");
+    return Math.min.apply(Math, prices);
+  }
+  async function updateItemPrices(force) {
+    if (state.itemPriceUpdating) return;
+    if (!state.itemPriceApiKey) return;
+    var intervalMs = state.itemPriceUpdateInterval * 60 * 1000;
+    if (!force && (!state.itemPriceLastUpdated || Date.now() - state.itemPriceLastUpdated < intervalMs)) return;
+    state.itemPriceUpdating = true;
+    render();
+    var success = 0;
+    var messages = [];
+    try {
+      var fusion = await fetchMarketUnitPrice("상급 아비도스 융화 재료");
+      state.items = state.items.map(function (it) { return it.id === "i1" ? Object.assign({}, it, { price: fusion }) : it; });
+      success++;
+    } catch (e) { messages.push("아비도스: " + e.message); }
+    try {
+      var gem = await fetchGemUnitPrice();
+      state.items = state.items.map(function (it) { return it.id === "i2" ? Object.assign({}, it, { price: gem }) : it; });
+      success++;
+    } catch (e) { messages.push("8레벨 보석: " + e.message); }
+    state.itemPriceUpdating = false;
+    if (success > 0) state.itemPriceLastUpdated = Date.now();
+    state.itemPriceError = messages.join(" / ");
+    saveItems();
+    saveSettings();
+    render();
+  }
+  function formatPriceUpdatedAt(ts) {
+    if (!ts) return "아직 가격 갱신 기록 없음";
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return "아직 가격 갱신 기록 없음";
+    return "마지막 갱신 " + (d.getMonth()+1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+  }
+
+  function ensureCurrentWeek() {
+    var now = new Date();
+    var start = computeWeekStart(now);
+    var end = addDays(start, 6);
+    var key = fmtKey(start);
+    var wk = getWeek(key);
+    if (!wk) {
+      // 최근 주차의 목표와 판매되지 않은 획득 골드를 누적 이월
+      var previousTarget = 0;
+      var previousEarned = 0;
+      var previousByAccount = {};
+      var probe = addDays(start, -7);
+      for (var i = 0; i < 52; i++) {
+        var probeWk = getWeek(fmtKey(probe));
+        if (probeWk) {
+          previousTarget = effectiveWeekTarget(probeWk.target, probeWk.entries);
+          previousEarned = totalWeekEarned(probeWk.carriedEarned, probeWk.entries);
+          previousByAccount = nextCarriedByAccount(probeWk.carriedByAccount, probeWk.entries);
+          break;
+        }
+        probe = addDays(probe, -7);
+      }
+      wk = { target: previousTarget + state.baseTarget, carry: 0, carriedEarned: previousEarned, carriedByAccount: previousByAccount, entries: [] };
+      setWeek(key, wk);
+    }
+    state.weekKey = key;
+    state.weekStart = start;
+    state.weekEnd = end;
+    state.weekTarget = wk.target;
+    state.weekCarry = wk.carry || 0;
+    state.weekCarriedEarned = wk.carriedEarned || 0;
+    state.weekCarriedByAccount = wk.carriedByAccount || {};
+    state.entries = wk.entries || [];
+  }
+
+  function loadHistory() {
+    var list = [];
+    var prefix = STORAGE_PREFIX + "week_";
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(prefix) === 0) {
+        var dateStr = k.substring(prefix.length);
+        if (dateStr === state.weekKey) continue;
+        var wk = lsGet("week_" + dateStr);
+        if (!wk) continue;
+        var parts = dateStr.split("-").map(Number);
+        var s = new Date(parts[0], parts[1] - 1, parts[2]);
+        if (isNaN(s.getTime())) continue;
+        list.push({ key: dateStr, start: s, end: addDays(s, 6), target: wk.target, carriedEarned: wk.carriedEarned || 0, carriedByAccount: wk.carriedByAccount || {}, earned: totalWeekEarned(wk.carriedEarned, wk.entries), entries: wk.entries || [] });
+      }
+    }
+    list.sort(function (a, b) { return b.start - a.start; });
+    state.history = list;
+  }
+
+  function saveCurrentWeek() {
+    setWeek(state.weekKey, { target: state.weekTarget, carry: state.weekCarry, carriedEarned: state.weekCarriedEarned, carriedByAccount: state.weekCarriedByAccount, entries: state.entries });
+    scheduleSheetSync();
+  }
+  function accountNameById(id) {
+    var found = state.accounts.filter(function (a) { return a.id === id; })[0];
+    return found ? found.name : "(삭제된 계정)";
+  }
+  function allWeeksData() {
+    var cur = { key: state.weekKey, start: state.weekStart, end: state.weekEnd, target: state.weekTarget, carriedEarned: state.weekCarriedEarned, carriedByAccount: state.weekCarriedByAccount, entries: state.entries };
+    return [cur].concat(state.history);
+  }
+
+  function init() {
+    state.accounts = loadAccounts();
+    var settings = loadSettings();
+    state.baseTarget = settings.baseTarget || DEFAULT_TARGET;
+    state.itemTarget = settings.itemTarget || 0;
+    state.exchangeRate = settings.exchangeRate || DEFAULT_RATE;
+    state.cardBill = settings.cardBill || 0;
+    state.cashOnHand = settings.cashOnHand || 0;
+    state.sheetUrl = settings.sheetUrl || "";
+    state.lastSheetSyncAt = Number(settings.lastSheetSyncAt) || 0;
+    state.itemPriceApiKey = settings.itemPriceApiKey || "";
+    state.itemPriceUpdateInterval = Number(settings.itemPriceUpdateInterval) === 30 ? 30 : 60;
+    state.itemPriceLastUpdated = Number(settings.itemPriceLastUpdated) || 0;
+    ensureCurrentWeek();
+    loadHistory();
+    state.items = loadItems();
+    render();
+  }
+  function saveSettings(skipSheetSync) {
+    lsSet("settings", { baseTarget: state.baseTarget, itemTarget: state.itemTarget, exchangeRate: state.exchangeRate, cardBill: state.cardBill, cashOnHand: state.cashOnHand, sheetUrl: state.sheetUrl, lastSheetSyncAt: state.lastSheetSyncAt, itemPriceApiKey: state.itemPriceApiKey, itemPriceUpdateInterval: state.itemPriceUpdateInterval, itemPriceLastUpdated: state.itemPriceLastUpdated });
+    if (!skipSheetSync) scheduleSheetSync();
+  }
+
+  // ---------- 백업 / CSV / 구글 시트 동기화 ----------
+  function downloadFile(filename, content, mime) {
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  function exportAllData() {
+    var out = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(STORAGE_PREFIX) === 0) {
+        var short = k.substring(STORAGE_PREFIX.length);
+        if (short === "settings") continue;
+        try { out[short] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+      }
+    }
+    var settingsBackup = {
+      baseTarget: state.baseTarget,
+      itemTarget: state.itemTarget,
+      exchangeRate: state.exchangeRate,
+      cardBill: state.cardBill,
+      cashOnHand: state.cashOnHand,
+      sheetUrl: state.sheetUrl,
+      lastSheetSyncAt: state.lastSheetSyncAt,
+      itemPriceUpdateInterval: state.itemPriceUpdateInterval,
+      itemPriceLastUpdated: state.itemPriceLastUpdated
+    };
+    out.settings = settingsBackup;
+    return out;
+  }
+  function csvCell(v) {
+    var s = String(v);
+    if (s.indexOf(",") >= 0 || s.indexOf('"') >= 0 || s.indexOf("\n") >= 0) {
+      s = '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+  function buildHistoryRows() {
+    return allWeeksData().map(function (w) {
+      var earned = totalWeekEarned(w.carriedEarned, w.entries);
+      var target = effectiveWeekTarget(w.target, w.entries);
+      var byAccount = {};
+      state.accounts.forEach(function (a) {
+        byAccount[a.name] = totalAccountEarned(w.carriedByAccount, w.entries, a.id);
+      });
+      var accounted = Object.keys(byAccount).reduce(function (sum, name) { return sum + byAccount[name]; }, 0);
+      if (earned !== accounted) byAccount["이월 조정 / 미배정"] = (byAccount["이월 조정 / 미배정"] || 0) + earned - accounted;
+      return {
+        startKey: fmtKey(w.start),
+        endKey: fmtKey(w.end),
+        target: target,
+        earned: earned,
+        status: earned >= target ? "달성" : "미달",
+        byAccount: byAccount
+      };
+    });
+  }
+  function buildEntryRows() {
+    var rows = [];
+    allWeeksData().forEach(function (w) {
+      (w.entries || []).forEach(function (e) {
+        rows.push({
+          weekStart: fmtKey(w.start),
+          date: e.date,
+          account: accountNameById(e.accountId),
+          type: e.type === "sell" ? "판매" : "획득",
+          amount: e.amount
+        });
+      });
+    });
+    return rows;
+  }
+  function buildItemsRows() {
+    return state.items.map(function (it) {
+      return { name: it.name, price: it.price, qty: it.qty || 0, total: (it.qty || 0) * (it.price || 0) };
+    });
+  }
+  function buildHistoryCSV() {
+    var accountNames = state.accounts.map(function (a) { return a.name; });
+    var rows = [["기간 시작", "기간 종료", "목표(골드)", "획득(골드)", "상태"].concat(accountNames)];
+    buildHistoryRows().forEach(function (r) {
+      var line = [r.startKey, r.endKey, r.target, r.earned, r.status];
+      accountNames.forEach(function (n) { line.push(r.byAccount[n] || 0); });
+      rows.push(line);
+    });
+    return rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
+  }
+  var syncTimer = null;
+  function fmtSheetSyncTime(timestamp) {
+    if (!timestamp) return "아직 동기화 기록 없음";
+    return new Date(timestamp).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  function scheduleSheetSync() {
+    if (!state.sheetUrl) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncToSheet, 4000);
+  }
+  function syncToSheet(manual) {
+    if (!state.sheetUrl) {
+      if (manual) { state.error = "구글 시트 웹앱 URL을 먼저 설정해주세요."; render(); }
+      return;
+    }
+    var payload = {
+      weeks: buildHistoryRows(),
+      entries: buildEntryRows(),
+      items: buildItemsRows(),
+      card: { cardBill: state.cardBill, cashOnHand: state.cashOnHand, exchangeRate: state.exchangeRate }
+    };
+    fetch(state.sheetUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).then(function (response) {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.text();
+    }).then(function (text) {
+      var result = JSON.parse(text);
+      if (!result || result.ok !== true) throw new Error((result && result.error) || "저장 확인 실패");
+      state.lastSheetSyncAt = result.syncedAt ? new Date(result.syncedAt).getTime() : Date.now();
+      saveSettings(true);
+      if (manual) { state.error = ""; state.syncMsg = "시트 저장을 확인했어요. " + fmtSheetSyncTime(state.lastSheetSyncAt); render(); setTimeout(function () { state.syncMsg = ""; render(); }, 3000); }
+    }).catch(function () {
+      state.error = "구글 시트 저장 확인에 실패했어요. Apps Script를 새 코드로 교체·재배포한 뒤 URL을 확인해주세요.";
+      render();
+    });
+  }
+
+  // ---------- 액션 ----------
+  window.__gl = {
+    toggleDesign: function () {
+      state.design = state.design === "dashboard" ? "classic" : "dashboard";
+      lsSet("design", state.design);
+      render();
+    },
+    openBaseModal: function () {
+      state.baseModalOpen = true;
+      render();
+      var el = document.getElementById("base-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    closeBaseModal: function () { state.baseModalOpen = false; render(); },
+    saveBase: function () {
+      var el = document.getElementById("base-input");
+      var v = parseManInput(el ? el.value : "");
+      state.baseTarget = v || DEFAULT_TARGET;
+      state.baseModalOpen = false;
+      saveSettings();
+      render();
+    },
+    openRateModal: function () {
+      state.rateModalOpen = true;
+      render();
+      var el = document.getElementById("rate-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    closeRateModal: function () { state.rateModalOpen = false; render(); },
+    saveRate: function () {
+      var el = document.getElementById("rate-input");
+      var v = parseIntInput(el ? el.value : "");
+      state.exchangeRate = v || DEFAULT_RATE;
+      state.rateModalOpen = false;
+      saveSettings();
+      render();
+    },
+    startEditCardBill: function () {
+      state.editingCardBill = true;
+      render();
+      var el = document.getElementById("card-bill-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitCardBill: function () {
+      var el = document.getElementById("card-bill-input");
+      var v = parseIntInput(el ? el.value : "");
+      state.cardBill = v || 0;
+      state.editingCardBill = false;
+      saveSettings();
+      render();
+    },
+    startEditCash: function () {
+      state.editingCash = true;
+      render();
+      var el = document.getElementById("cash-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitCash: function () {
+      var el = document.getElementById("cash-input");
+      var v = parseIntInput(el ? el.value : "");
+      state.cashOnHand = v || 0;
+      state.editingCash = false;
+      saveSettings();
+      render();
+    },
+    openDataModal: function () { state.dataModalOpen = true; render(); },
+    closeDataModal: function () { state.dataModalOpen = false; render(); },
+    exportJSON: function () {
+      var data = exportAllData();
+      downloadFile("lostark-gold-backup-" + fmtKey(new Date()) + ".json", JSON.stringify(data, null, 2), "application/json");
+    },
+    exportCSV: function () {
+      downloadFile("lostark-gold-history-" + fmtKey(new Date()) + ".csv", "\uFEFF" + buildHistoryCSV(), "text/csv;charset=utf-8");
+    },
+    triggerImport: function () {
+      var el = document.getElementById("import-file-input");
+      if (el) el.click();
+    },
+    handleImportFile: function (evt) {
+      var file = evt.target.files && evt.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var obj = JSON.parse(reader.result);
+          if (!confirm("백업 파일을 불러오면 현재 브라우저에 저장된 기록을 덮어씁니다. 계속할까요?")) return;
+          Object.keys(obj).forEach(function (k) {
+            try { localStorage.setItem(STORAGE_PREFIX + k, JSON.stringify(obj[k])); } catch (e) {}
+          });
+          location.reload();
+        } catch (e) {
+          state.error = "백업 파일을 읽을 수 없어요. 올바른 JSON 파일인지 확인해주세요.";
+          render();
+        }
+      };
+      reader.readAsText(file);
+      evt.target.value = "";
+    },
+    saveItemPriceApi: function () {
+      var keyEl = document.getElementById("item-price-api-key");
+      var intervalEl = document.getElementById("item-price-interval");
+      state.itemPriceApiKey = keyEl ? keyEl.value.trim() : "";
+      state.itemPriceUpdateInterval = intervalEl && Number(intervalEl.value) === 30 ? 30 : 60;
+      saveSettings();
+      state.error = "";
+      state.itemPriceError = "";
+      render();
+      updateItemPrices(true);
+    },
+    refreshItemPrices: function () { updateItemPrices(true); },
+    saveSheetUrl: function () {
+      var el = document.getElementById("sheet-url-input");
+      state.sheetUrl = el ? el.value.trim() : "";
+      saveSettings();
+      render();
+    },
+    syncNow: function () { syncToSheet(true); },
+    startEditCarriedEarned: function (index) {
+      var account = state.accounts[index];
+      if (!account) return;
+      state.editingCarriedAccountId = account.id;
+      render();
+      var el = document.getElementById("carried-earned-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    cancelEditCarriedEarned: function () {
+      state.editingCarriedAccountId = null;
+      render();
+    },
+    commitCarriedEarned: function () {
+      var accountId = state.editingCarriedAccountId;
+      if (accountId === null) return;
+      var el = document.getElementById("carried-earned-input");
+      if (!el) return;
+      var text = el.value.trim().replace(/,/g, "");
+      var value = Number(text) * 10000;
+      if (!text || !isFinite(value) || value < 0 || !Number.isSafeInteger(Math.round(value))) {
+        el.setCustomValidity("현재 보유 골드를 만 단위로 입력해주세요. 예: 95 또는 0");
+        el.reportValidity();
+        return;
+      }
+      recordAccountBalance(accountId, Math.round(value));
+      state.editingCarriedAccountId = null;
+      render();
+    },
+    startEditTarget: function () {
+      state.editingTarget = true;
+      render();
+      var el = document.getElementById("target-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitTarget: function () {
+      var el = document.getElementById("target-input");
+      var v = parseManInput(el ? el.value : "");
+      state.editingTarget = false;
+      if (v) {
+        state.weekTarget = v + totalSold(state.entries);
+        saveCurrentWeek();
+      }
+      render();
+    },
+    setFilter: function (id) {
+      state.filterAccount = id;
+      render();
+    },
+    setEntryType: function (t) {
+      state.entryType = t;
+      render();
+      var el = document.getElementById("entry-amount");
+      if (el) el.focus();
+    },
+    startRename: function (id, evt) {
+      if (evt) evt.stopPropagation();
+      state.renamingId = id;
+      render();
+      var el = document.getElementById("rename-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitRename: function (id) {
+      var el = document.getElementById("rename-input");
+      var name = el ? el.value.trim() : "";
+      state.renamingId = null;
+      if (name) {
+        state.accounts = state.accounts.map(function (a) {
+          return a.id === id ? { id: a.id, name: name } : a;
+        });
+        lsSet("accounts", state.accounts);
+      }
+      render();
+    },
+    addAccount: function () {
+      var n = state.accounts.length + 1;
+      var acc = { id: "a" + Date.now(), name: "계정 " + n };
+      state.accounts = state.accounts.concat([acc]);
+      lsSet("accounts", state.accounts);
+      render();
+    },
+    deleteAccount: function (id, evt) {
+      if (evt) evt.stopPropagation();
+      if (state.accounts.length <= 1) {
+        state.error = "계정이 최소 1개는 있어야 해요.";
+        render();
+        return;
+      }
+      var acc = state.accounts.filter(function (a) { return a.id === id; })[0];
+      var hasEntries = state.entries.some(function (e) { return e.accountId === id; });
+      var msg = "'" + (acc ? acc.name : "이 계정") + "'을(를) 삭제할까요?" + (hasEntries ? "\n이번 주 기록은 계정 태그 없이 그대로 남아요." : "");
+      if (!confirm(msg)) return;
+      state.accounts = state.accounts.filter(function (a) { return a.id !== id; });
+      lsSet("accounts", state.accounts);
+      if (state.filterAccount === id) state.filterAccount = "all";
+      render();
+    },
+    addEntry: function () {
+      var accEl = document.getElementById("entry-account");
+      var amtEl = document.getElementById("entry-amount");
+      if (state.entryType !== "sell") {
+        var text = String(amtEl ? amtEl.value : "").trim().replace(/,/g, "");
+        var balance = Number(text) * 10000;
+        if (!text || !isFinite(balance) || balance < 0 || !Number.isSafeInteger(Math.round(balance))) {
+          state.error = "현재 보유 골드를 만 단위로 입력해주세요. (예: 95 또는 0)";
+          render();
+          return;
+        }
+        recordAccountBalance(accEl ? accEl.value : state.accounts[0].id, Math.round(balance));
+        state.error = "";
+        render();
+        return;
+      }
+      var amount = parseManInput(amtEl ? amtEl.value : "");
+      if (!amount) {
+        state.error = "골드 금액을 만 단위 숫자로 입력해주세요. (예: 2.5)";
+        render();
+        return;
+      }
+      var entry = {
+        id: String(Date.now()) + Math.random().toString(16).slice(2, 6),
+        accountId: accEl ? accEl.value : state.accounts[0].id,
+        type: state.entryType === "sell" ? "sell" : "earn",
+        amount: amount,
+        date: new Date().toISOString()
+      };
+      state.error = "";
+      var wasComplete = totalWeekEarned(state.weekCarriedEarned, state.entries) >= effectiveWeekTarget(state.weekTarget, state.entries);
+      state.entries = [entry].concat(state.entries);
+      saveCurrentWeek();
+      var nowComplete = totalWeekEarned(state.weekCarriedEarned, state.entries) >= effectiveWeekTarget(state.weekTarget, state.entries);
+      if (!wasComplete && nowComplete) {
+        state.justCompleted = true;
+        setTimeout(function () { state.justCompleted = false; render(); }, 1600);
+      }
+      if (amtEl) amtEl.value = "";
+      render();
+      var focusEl = document.getElementById("entry-amount");
+      if (focusEl) focusEl.focus();
+    },
+    deleteEntry: function (id) {
+      if (!confirm("이 기록을 삭제할까요?")) return;
+      state.entries = state.entries.filter(function (e) { return e.id !== id; });
+      saveCurrentWeek();
+      render();
+    },
+    startEditEntry: function (id) {
+      state.editingEntryId = id;
+      render();
+      var el = document.getElementById("entry-edit-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitEditEntry: function (id) {
+      var el = document.getElementById("entry-edit-input");
+      var amount = parseManInput(el ? el.value : "");
+      var existing = state.entries.find(function (e) { return e.id === id; });
+      if (existing && existing.balanceUpdate && el && /^\s*-/.test(el.value)) amount = -amount;
+      state.editingEntryId = null;
+      if (amount) {
+        state.entries = state.entries.map(function (e) {
+          return e.id === id ? Object.assign({}, e, { amount: amount }) : e;
+        });
+        saveCurrentWeek();
+      }
+      render();
+    },
+    toggleHistory: function () {
+      state.showAllHistory = !state.showAllHistory;
+      render();
+    },
+    setView: function (v) {
+      state.view = v;
+      render();
+    },
+    addItem: function () {
+      var item = { id: "it" + Date.now(), name: "새 아이템", price: 0, qty: 0 };
+      state.items = [item].concat(state.items);
+      saveItems();
+      render();
+    },
+    deleteItem: function (id) {
+      if (!confirm("이 아이템을 삭제할까요?")) return;
+      state.items = state.items.filter(function (it) { return it.id !== id; });
+      saveItems();
+      render();
+    },
+    startRenameItem: function (id) {
+      state.renamingItemId = id;
+      render();
+      var el = document.getElementById("item-name-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitRenameItem: function (id) {
+      var el = document.getElementById("item-name-input");
+      var name = el ? el.value.trim() : "";
+      state.renamingItemId = null;
+      if (name) {
+        state.items = state.items.map(function (it) { return it.id === id ? Object.assign({}, it, { name: name }) : it; });
+        saveItems();
+      }
+      render();
+    },
+    startEditItemPrice: function (id) {
+      state.editingItemPriceId = id;
+      render();
+      var el = document.getElementById("item-price-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitItemPrice: function (id) {
+      var el = document.getElementById("item-price-input");
+      var price = parseInt(String(el ? el.value : "").replace(/[^0-9]/g, ""), 10);
+      if (isNaN(price)) price = 0;
+      state.editingItemPriceId = null;
+      state.items = state.items.map(function (it) { return it.id === id ? Object.assign({}, it, { price: price }) : it; });
+      saveItems();
+      render();
+    },
+    onQtyInput: function (id, value) {
+      var qty = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
+      if (isNaN(qty)) qty = 0;
+      var item = state.items.filter(function (it) { return it.id === id; })[0];
+      if (!item) return;
+      var totalEl = document.getElementById("item-total-" + id);
+      if (totalEl) totalEl.textContent = fmtItemGold(qty * (item.price || 0));
+      var grandEl = document.getElementById("items-grand-total");
+      if (grandEl) {
+        var grandTotal = itemsGrandTotal(id, qty);
+        grandEl.textContent = '현금 기준 ' + fmtItemWon(goldToWon(grandTotal)) + ' / 골드 기준 ' + fmtItemGold(grandTotal);
+      }
+    },
+    commitQty: function (id, value) {
+      var qty = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
+      if (isNaN(qty)) qty = 0;
+      state.items = state.items.map(function (it) { return it.id === id ? Object.assign({}, it, { qty: qty }) : it; });
+      saveItems();
+      render();
+    },
+    startEditItemTarget: function () {
+      state.editingItemTarget = true;
+      render();
+      var el = document.getElementById("item-target-input");
+      if (el) { el.focus(); el.select(); }
+    },
+    commitItemTarget: function () {
+      var el = document.getElementById("item-target-input");
+      var v = parseInt(String(el ? el.value : "").replace(/[^0-9]/g, ""), 10);
+      if (isNaN(v)) v = 0;
+      state.itemTarget = v;
+      state.editingItemTarget = false;
+      saveSettings();
+      render();
+    },
+    keyEnter: function (evt, fn) {
+      if (evt.key === "Enter") fn();
+    }
+  };
+
+  // ---------- 렌더 ----------
+  var isRendering = false;
+  var renderQueued = false;
+var dashboardPortraits = [];
+  var dashboardPhotoNames = [];
+  var dashboardPhotoIds = lsGet("portraitBindings") || {};
+  function dashboardPhotoIndex(account) {
+    return -1; // No personal portraits in the distribution.
+  }
+  function renderDashboard(earned, target, remaining) {
+    var html = '<div class="ar-heading"><h2 style="font-size:21px;margin:0">주간 골드 현황</h2><div class="ar-period">' + fmtShort(state.weekStart) + ' ~ ' + fmtShort(state.weekEnd) + '</div></div>';
+    html += '<section class="ar-summary" aria-label="주간 요약"><div class="ar-metric"><div class="ar-label">현재 보유 골드</div><div class="ar-number" data-dashboard-total>' + fmtWalletGold(earned) + '</div><div class="ar-caption">' + state.accounts.length + '개 계정 합산</div></div>';
+    html += '<div class="ar-metric"><div class="ar-label">판매 반영 목표</div>';
+    if (state.editingTarget) {
+      html += '<input id="target-input" class="inline-input" aria-label="목표 골드 (만 단위)" value="' + manValueForInput(target) + '" inputmode="decimal" onblur="__gl.commitTarget()" onkeydown="__gl.keyEnter(event, __gl.commitTarget)" />';
+    } else {
+      html += '<button type="button" class="ar-target" title="클릭해서 목표 수정" onclick="__gl.startEditTarget()">' + fmtWalletGold(target) + '</button>';
+    }
+    html += '<div class="ar-caption">판매액 차감 · 금액을 눌러 수정</div></div>';
+    html += '<div class="ar-metric"><div class="ar-label">' + (remaining > 0 ? '목표까지 부족' : '목표 초과 보유') + '</div><div class="ar-number" style="color:' + (remaining > 0 ? 'var(--rust)' : 'var(--green)') + '">' + fmtWalletGold(Math.abs(remaining)) + '</div><div class="ar-caption">' + (remaining > 0 ? '현재 보유액 기준' : '목표 확보 완료') + '</div></div></section>';
+    html += '<div class="ar-body"><section><div class="ar-sectionhead"><h2>계정별 보유 골드 <span class="ar-count">' + state.accounts.length + '</span></h2><span class="ar-hint">금액을 눌러 수정</span></div><div class="ar-accounts">';
+    state.accounts.forEach(function (a, index) {
+      var photo = dashboardPhotoIndex(a);
+      html += '<article class="ar-account" data-id="' + (photo >= 0 ? photo : index % 4) + '">';
+      html += photo >= 0 && dashboardPortraits[photo] ? '<div class="ar-portrait"><img src="' + dashboardPortraits[photo] + '" alt="' + esc(a.name) + ' 대표 캐릭터"></div>' : '<div class="ar-portrait fallback" aria-hidden="true">' + esc(a.name.slice(0, 1)) + '</div>';
+      html += '<div class="ar-profile"><div class="ar-name"><span class="ar-dot"></span>' + esc(a.name) + '</div>';
+      if (state.editingCarriedAccountId === a.id) {
+        html += '<input id="carried-earned-input" class="ar-inline" aria-label="' + esc(a.name) + ' 현재 보유 골드 (만 단위)" value="' + (totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id) / 10000) + '" inputmode="decimal" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCarriedEarned()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCarriedEarned();}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelEditCarriedEarned();}" />';
+      } else {
+        html += '<button type="button" class="ar-balance" aria-label="' + esc(a.name) + ' 보유액 수정" onclick="__gl.startEditCarriedEarned(' + index + ')">' + fmtWalletGold(totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id)) + '</button>';
+      }
+      html += '<div class="ar-carry">주 시작 이월 <b>' + fmtGold(state.weekCarriedByAccount[a.id] || 0) + '</b></div></div></article>';
+    });
+    var assigned = state.accounts.reduce(function (sum, a) { return sum + totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id); }, 0);
+    if (earned !== assigned) html += '<div class="ar-unassigned"><span>이월 조정 / 미배정</span><strong>' + fmtGold(earned - assigned) + '</strong></div>';
+    html += '</div><div class="ar-ledgerfoot"><span>주 시작 이월</span><strong>' + fmtGold(state.weekCarriedEarned) + ' 골드</strong></div></section>';
+    html += '<aside class="ar-sale"><div class="ar-salehead"><h2>골드 판매 등록</h2></div><div class="ar-form"><label for="entry-account">판매 계정</label><select id="entry-account">';
+    state.accounts.forEach(function (a) { html += '<option value="' + esc(a.id) + '">' + esc(a.name) + '</option>'; });
+    html += '</select><label for="entry-amount">판매 금액</label><div class="ar-inputbox"><input id="entry-amount" aria-label="판매 골드 (만 단위)" placeholder="0" inputmode="decimal" onkeydown="__gl.keyEnter(event, __gl.addEntry)" /><span>만 골드</span></div><button type="button" class="ar-submit" onclick="__gl.addEntry()">판매 등록</button><p class="ar-formnote">선택 계정의 보유액과<br>이번 주 목표에서 함께 차감됩니다.</p></div><div class="ar-salesum"><span>이번 주 판매 합계</span><strong>' + fmtGold(totalSold(state.entries)) + ' 골드</strong></div></aside></div>';
+    return html;
+  }
+  function render() {
+    if (isRendering) {
+      renderQueued = true;
+      return;
+    }
+    isRendering = true;
+    var earned = totalWeekEarned(state.weekCarriedEarned, state.entries);
+    var adjustedTarget = effectiveWeekTarget(state.weekTarget, state.entries);
+    var remaining = adjustedTarget - earned;
+    var rawPct = adjustedTarget > 0 ? (earned / adjustedTarget) * 100 : 0;
+    var pct = Math.max(0, Math.round(rawPct));
+    var barFillWidth = Math.max(0, Math.min(100, rawPct));
+    var sealPos = Math.max(0, Math.min(100, rawPct));
+    var complete = earned >= adjustedTarget;
+
+    var filteredEntries = state.filterAccount === "all"
+      ? state.entries
+      : state.entries.filter(function (e) { return e.accountId === state.filterAccount; });
+
+    var accountsById = {};
+    state.accounts.forEach(function (a) { accountsById[a.id] = a; });
+
+    var html = "";
+    html += '<div class="wrap' + (state.design === "dashboard" ? ' dashboard-theme' : '') + '">';
+
+    // 헤더
+    html += '<div class="header">';
+    html += '<div><div class="eyebrow">LOST ARK · 주간 골드 장부</div><h1 class="title">골드 장부</h1></div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="base-btn" onclick="__gl.toggleDesign()">' + (state.design === "dashboard" ? '이전 디자인' : '새 디자인') + '</button>';
+    html += '<button class="base-btn" onclick="__gl.openDataModal()">💾 데이터</button>';
+    html += '<button class="base-btn" onclick="__gl.openBaseModal()">기본 목표 ' + fmtGold(state.baseTarget) + ' ⚙</button>';
+    html += '</div>';
+    html += '</div>';
+
+    // 뷰 탭
+    html += '<div class="view-tabs">' +
+      '<div class="view-tab' + (state.view === "ledger" ? " active" : "") + '" onclick="__gl.setView(\'ledger\')">주간 골드</div>' +
+      '<div class="view-tab' + (state.view === "items" ? " active" : "") + '" onclick="__gl.setView(\'items\')">아이템 계산기</div>' +
+      '</div>';
+
+    if (state.error) html += '<div class="error-bar">' + esc(state.error) + '</div>';
+    if (state.syncMsg) html += '<div class="sync-msg">' + esc(state.syncMsg) + '</div>';
+
+    if (state.dataModalOpen) {
+      html += '<div class="overlay" onclick="__gl.closeDataModal()"><div class="modal data-modal" onclick="event.stopPropagation()">';
+      html += '<div class="modal-title">데이터 관리</div><div style="font-size:11.5px;color:var(--text-muted);margin:-6px 0 14px">아이템 가격 API 설정은 여기에서 합니다.</div>';
+
+      html += '<div class="data-section"><div class="data-section-title">⚙ 아이템 가격 자동 갱신</div>' +
+        '<div class="data-section-desc">로스트아크 Open API 키를 입력하면 상급 아비도스 융화재료와 4티어 8레벨 보석 가격을 자동으로 가져옵니다.</div>' +
+        '<label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">API KEY</label>' +
+        '<input id="item-price-api-key" class="modal-input" type="text" autocomplete="off" spellcheck="false" placeholder="예: 발급받은 API KEY를 붙여넣으세요" value="' + esc(state.itemPriceApiKey) + '" />' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">' +
+        '<select id="item-price-interval" class="select-input" style="flex:1"><option value="30"' + (state.itemPriceUpdateInterval === 30 ? ' selected' : '') + '>30분마다</option><option value="60"' + (state.itemPriceUpdateInterval === 60 ? ' selected' : '') + '>1시간마다</option></select>' +
+        '<button class="data-btn" onclick="__gl.saveItemPriceApi()">저장 · 즉시 갱신</button></div>' +
+        '<div style="font-size:11.5px;color:var(--text-muted)">설정한 주기로 자동 갱신 · ' + esc(formatPriceUpdatedAt(state.itemPriceLastUpdated)) + (state.itemPriceUpdating ? ' · 갱신 중…' : '') + '</div>' +
+        (state.itemPriceError ? '<div style="font-size:11.5px;color:var(--rust);margin-top:6px">' + esc(state.itemPriceError) + '</div>' : '') + '</div>';
+
+      html += '<div class="data-section"><div class="data-section-title">백업 (JSON)</div>' +
+        '<div class="data-section-desc">계정·기록·설정을 통째로 파일로 저장하거나 복원해요. 브라우저를 바꾸거나 캐시가 지워져도 이 파일로 복구할 수 있어요.</div>' +
+        '<div class="data-btn-row"><button class="data-btn" onclick="__gl.exportJSON()">내보내기</button>' +
+        '<button class="data-btn" onclick="__gl.triggerImport()">가져오기</button></div></div>';
+
+      html += '<div class="data-section"><div class="data-section-title">주간 히스토리 CSV</div>' +
+        '<div class="data-section-desc">이번 주 포함 전체 주차 기록을 CSV로 내려받아요. 구글 스프레드시트에서 "파일 → 가져오기"로 열 수 있어요.</div>' +
+        '<div class="data-btn-row"><button class="data-btn" onclick="__gl.exportCSV()">CSV 내려받기</button></div></div>';
+
+      html += '<div class="data-section"><div class="data-section-title">구글 시트 자동 동기화</div>' +
+        '<div class="data-section-desc">구글 시트에 연결된 Apps Script 웹앱 URL을 입력하면, 주간 기록·계정별 획득·개별 내역·아이템·카드값까지 저장할 때마다 자동으로 시트에 반영돼요.</div>' +
+        '<input id="sheet-url-input" class="modal-input" placeholder="https://script.google.com/macros/s/.../exec" value="' + esc(state.sheetUrl) + '" />' +
+        '<div class="data-section-desc">마지막 저장 확인: ' + fmtSheetSyncTime(state.lastSheetSyncAt) + '</div>' +
+        '<div class="data-btn-row"><button class="data-btn" onclick="__gl.saveSheetUrl()">URL 저장</button>' +
+        '<button class="data-btn" onclick="__gl.syncNow()">지금 동기화</button></div></div>';
+
+      html += '<div class="modal-row" style="margin-top:14px"><button class="ghost-btn" onclick="__gl.closeDataModal()">닫기</button></div>';
+      html += '</div></div>';
+    }
+
+    if (state.view === "ledger") {
+      // 계정 칩
+      if (state.design === "dashboard") html += '<details class="account-manager"' + (state.renamingId ? ' open' : '') + '><summary>계정 관리 · 내역 필터</summary>';
+      html += '<div class="account-row">';
+      html += '<div class="chip' + (state.filterAccount === "all" ? " active" : "") + '" onclick="__gl.setFilter(\'all\')">전체</div>';
+      state.accounts.forEach(function (a) {
+        if (state.renamingId === a.id) {
+          html += '<div class="chip active">' +
+            '<input id="rename-input" class="rename-input" value="' + esc(a.name) + '" ' +
+            'onkeydown="__gl.keyEnter(event, function(){__gl.commitRename(\'' + a.id + '\')})" ' +
+            'onblur="__gl.commitRename(\'' + a.id + '\')" />' +
+            '</div>';
+        } else {
+          html += '<div class="chip' + (state.filterAccount === a.id ? " active" : "") + '" onclick="__gl.setFilter(\'' + a.id + '\')" title="더블클릭 또는 ✎ 로 이름 변경">' +
+            esc(a.name) +
+            '<span class="pencil" onclick="__gl.startRename(\'' + a.id + '\', event)" ondblclick="event.stopPropagation()">✎</span>' +
+            '<span class="chip-del" onclick="__gl.deleteAccount(\'' + a.id + '\', event)" title="계정 삭제">×</span>' +
+            '</div>';
+        }
+      });
+      html += '<button class="chip-add" onclick="__gl.addAccount()" title="계정 추가">+</button>';
+      html += '</div>';
+
+      // 기본목표 모달
+      if (state.design === "dashboard") html += '</details>';
+      if (state.baseModalOpen) {
+        html += '<div class="overlay" onclick="__gl.closeBaseModal()"><div class="modal" onclick="event.stopPropagation()">';
+        html += '<div class="modal-title">매주 기본 목표금액 (4계정 합산, 만 단위)</div>';
+        html += '<input id="base-input" class="modal-input" value="' + manValueForInput(state.baseTarget) + '" inputmode="decimal" ' +
+          'onkeydown="__gl.keyEnter(event, __gl.saveBase)" />';
+        html += '<div class="modal-row"><button class="ghost-btn" onclick="__gl.closeBaseModal()">취소</button>' +
+          '<button class="gold-btn" onclick="__gl.saveBase()">저장</button></div>';
+        html += '</div></div>';
+      }
+
+      // 주간 장부 카드
+      if (state.design === "dashboard") {
+        html += renderDashboard(earned, adjustedTarget, remaining);
+      } else {
+      html += '<section class="card-panel wallet-summary">';
+      html += '<div class="card-header-row"><span class="card-header-label">주간 골드 · ' + state.accounts.length + '개 계정</span>' +
+        '<span class="card-header-val">' + fmtShort(state.weekStart) + ' ~ ' + fmtShort(state.weekEnd) + '</span></div>';
+
+      html += '<div class="wallet-total"><div class="wallet-total-label">지금 보유한 골드</div><div class="wallet-total-value">' + fmtWalletGold(earned) + '</div>' +
+        '<div class="wallet-meta"><span>주 시작 이월 <b>' + fmtGold(state.weekCarriedEarned) + '</b></span><span>이번 주 판매 <b>' + fmtGold(totalSold(state.entries)) + '</b></span></div></div>';
+
+      html += '<div class="wallet-goals">';
+      html += '<div class="stat-box"><div class="stat-label">판매 반영 목표</div>';
+      if (state.editingTarget) {
+        html += '<input id="target-input" class="inline-input" value="' + manValueForInput(adjustedTarget) + '" inputmode="decimal" ' +
+          'onblur="__gl.commitTarget()" onkeydown="__gl.keyEnter(event, __gl.commitTarget)" />';
+      } else {
+        html += '<div class="stat-value" title="클릭해서 수정" onclick="__gl.startEditTarget()">' + fmtWalletGold(adjustedTarget) + '</div>';
+      }
+      html += '</div>';
+      
+      html += '<div class="stat-box"><div class="stat-label">' + (remaining > 0 ? "목표까지 부족" : "목표보다 여유") + '</div>' +
+        '<div class="stat-value" style="color:' + (remaining > 0 ? "var(--rust)" : "var(--green)") + '">' + fmtWalletGold(Math.abs(remaining)) + '</div></div>';
+      html += '</div>';
+
+      html += '<div class="wallet-progress"><div class="bar-fill" style="width:' + (complete ? 100 : barFillWidth) + '%"></div></div>';
+      html += '<div class="wallet-progress-caption"><span>현재 보유액 기준</span><span>' + (complete ? '목표 확보 완료' : pct + '% 확보') + '</span></div></section>';
+      html += '<div class="wallet-section-head"><h2>계정별 보유 골드</h2><span>금액을 눌러 현재 보유액으로 수정</span></div>';
+      html += '<div class="wallet-accounts">';
+      state.accounts.forEach(function (a, index) {
+        html += '<div class="wallet-account"><div class="wallet-account-name">' + esc(a.name) + '</div>';
+        if (state.editingCarriedAccountId === a.id) {
+          html += '<div class="wallet-account-edit"><input id="carried-earned-input" aria-label="' + esc(a.name) + ' 현재 보유 골드 (만 단위)" class="items-target-input" value="' + (totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id) / 10000) + '" inputmode="decimal" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCarriedEarned()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCarriedEarned();}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelEditCarriedEarned();}" /><span>만</span></div>';
+        } else {
+          html += '<button type="button" class="wallet-account-value" aria-label="' + esc(a.name) + ' 보유액 수정" title="클릭해서 현재 보유 골드 수정" onclick="__gl.startEditCarriedEarned(' + index + ')">' + fmtWalletGold(totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id)) + '</button>';
+        }
+        html += '<div class="wallet-account-note">주 시작 ' + fmtGold(state.weekCarriedByAccount[a.id] || 0) + ' 이월</div></div>';
+      });
+      var accountedEarned = state.accounts.reduce(function (sum, a) { return sum + totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id); }, 0);
+      if (earned !== accountedEarned) {
+        html += '<div class="wallet-account"><div class="wallet-account-name">이월 조정 / 미배정</div><div class="wallet-account-value" style="cursor:default">' + fmtWalletGold(earned - accountedEarned) + '</div></div>';
+      }
+      html += '</div>';
+
+      // 골드 추가 폼
+      html += '<section class="card-panel wallet-sales"><div class="wallet-section-head"><h2>골드 판매</h2><span>이번 주 ' + fmtGold(totalSold(state.entries)) + ' 판매</span></div>';
+      html += '<div class="entry-form">';
+      html += '<select id="entry-account" class="select-input" aria-label="판매 계정">';
+      state.accounts.forEach(function (a) {
+        html += '<option value="' + a.id + '">' + esc(a.name) + '</option>';
+      });
+      html += '</select>';
+      html += '<input id="entry-amount" class="amount-input" aria-label="판매 골드 (만 단위)" placeholder="판매 금액 (만 골드)" inputmode="decimal" ' +
+        'onkeydown="__gl.keyEnter(event, __gl.addEntry)" />';
+      html += '<button class="add-btn" onclick="__gl.addEntry()">판매 기록</button>';
+      html += '</div>';
+      html += '<div class="unit-hint">판매액은 목표와 선택한 계정의 보유액에서 함께 차감됩니다.</div></section>';
+
+      // 카드값 & 원화 환산 (글씨 크기 확대 및 강조 박스)
+      }
+      var remainingWon = state.cardBill - state.cashOnHand;
+      var remainingGold = state.exchangeRate ? (Math.max(0, remainingWon) / state.exchangeRate) * 10000 : 0;
+      html += '<section class="card-panel billing-panel">';
+      html += '<div class="card-header-row"><span class="card-header-label">카드값 · 다음달 결제 예정</span></div>';
+      html += '<div class="stats-grid">';
+      html += '<div class="stat-box"><div class="stat-label">카드값 (원)</div>';
+      if (state.editingCardBill) {
+        html += '<input id="card-bill-input" class="inline-input" value="' + state.cardBill + '" inputmode="numeric" ' +
+          'onblur="__gl.commitCardBill()" onkeydown="__gl.keyEnter(event, __gl.commitCardBill)" />';
+      } else {
+        html += '<div class="stat-value" title="클릭해서 수정" onclick="__gl.startEditCardBill()">' + fmtWon(state.cardBill) + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="stat-box"><div class="stat-label">현금 (원)</div>';
+      if (state.editingCash) {
+        html += '<input id="cash-input" class="inline-input" value="' + state.cashOnHand + '" inputmode="numeric" ' +
+          'onblur="__gl.commitCash()" onkeydown="__gl.keyEnter(event, __gl.commitCash)" />';
+      } else {
+        html += '<div class="stat-value" title="클릭해서 수정" onclick="__gl.startEditCash()">' + fmtWon(state.cashOnHand) + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="stat-box"><div class="stat-label">' + (remainingWon > 0 ? "남은금액" : "여유자금") + '</div>' +
+        '<div class="stat-value" style="color:' + (remainingWon > 0 ? "var(--rust)" : "var(--green)") + '">' + fmtWon(Math.abs(remainingWon)) + '</div></div>';
+      html += '</div>';
+
+      html += '<div class="card-conversion-box">';
+      html += '<div class="conversion-label">골드로 환산 (남은금액 기준 필요 골드)</div>';
+      html += '<div class="conversion-value">' + fmtGold(remainingGold) + '</div>';
+      html += '<div class="rate-hint" onclick="__gl.openRateModal()">환율 1만골드 = ' + fmtWon(state.exchangeRate) + ' (클릭해서 수정)</div>';
+      html += '</div>';
+      html += '</section>';
+
+      if (state.rateModalOpen) {
+        html += '<div class="overlay" onclick="__gl.closeRateModal()"><div class="modal" onclick="event.stopPropagation()">';
+        html += '<div class="modal-title">골드 환율 (1만골드 당 원)</div>';
+        html += '<input id="rate-input" class="modal-input" value="' + state.exchangeRate + '" inputmode="numeric" ' +
+          'onkeydown="__gl.keyEnter(event, __gl.saveRate)" />';
+        html += '<div class="modal-row"><button class="ghost-btn" onclick="__gl.closeRateModal()">취소</button>' +
+          '<button class="gold-btn" onclick="__gl.saveRate()">저장</button></div>';
+        html += '</div></div>';
+      }
+
+      // 내역 리스트
+      html += '<section class="entries-section">';
+      html += '<div class="section-label">보유액 변경 · 판매 내역 (' + state.entries.length + ')</div>';
+      if (state.accounts.length > 1) {
+        html += '<div class="filter-row">';
+        html += '<button class="filter-chip' + (state.filterAccount === "all" ? " active" : "") + '" onclick="__gl.setFilter(\'all\')">전체</button>';
+        state.accounts.forEach(function (a) {
+          html += '<button class="filter-chip' + (state.filterAccount === a.id ? " active" : "") + '" onclick="__gl.setFilter(\'' + a.id + '\')">' + esc(a.name) + '</button>';
+        });
+        html += '</div>';
+      }
+      if (filteredEntries.length === 0) {
+        html += '<div class="empty-row">아직 기록된 골드가 없습니다.</div>';
+      } else {
+        filteredEntries.forEach(function (en) {
+          var d = new Date(en.date);
+          var accName = accountsById[en.accountId] ? accountsById[en.accountId].name : "-";
+          html += '<div class="entry-row">';
+          html += '<div class="entry-date">' + (d.getMonth() + 1) + '/' + d.getDate() + '</div>';
+          html += '<div><span class="entry-account-tag">' + esc(accName) + (en.type === "sell" ? " · 판매" : en.balanceUpdate ? " · 보유액 수정" : "") + '</span></div>';
+          if (state.editingEntryId === en.id) {
+            html += '<input id="entry-edit-input" class="entry-edit-input" value="' + manValueForInput(en.amount) + '" inputmode="decimal" ' +
+              'onblur="__gl.commitEditEntry(\'' + en.id + '\')" onkeydown="__gl.keyEnter(event, function(){__gl.commitEditEntry(\'' + en.id + '\')})" />';
+          } else {
+            var isSell = en.type === "sell";
+            html += '<div class="entry-amount' + (isSell ? " sell" : "") + '" title="클릭해서 수정" onclick="__gl.startEditEntry(\'' + en.id + '\')">' +
+              (isSell || en.amount < 0 ? "-" : "+") + fmtGold(Math.abs(en.amount)) + '</div>';
+          }
+          html += '<button class="del-btn" onclick="__gl.deleteEntry(\'' + en.id + '\')" title="삭제">×</button>';
+          html += '</div>';
+        });
+      }
+      html += '</section>';
+
+      // 지난 주차 히스토리
+      html += '<section class="history-section"><div class="section-label">지난 주차 기록</div>';
+      if (state.history.length === 0) {
+        html += '<div class="empty-row">지난 기록이 아직 없습니다.</div>';
+      } else {
+        var visible = state.showAllHistory ? state.history : state.history.slice(0, 6);
+        if (state.design === "dashboard") html += '<div class="history-columns" aria-hidden="true"><span>주간 기간</span><span>목표 / 보유 골드</span><span>달성 상태</span></div>';
+        visible.forEach(function (w) {
+          var historyTarget = effectiveWeekTarget(w.target, w.entries);
+          var ok = w.earned >= historyTarget;
+          html += '<div class="history-row">';
+          html += '<div class="history-period">' + fmtShort(w.start) + ' ~ ' + fmtShort(w.end) + '</div>';
+          html += '<div class="history-nums"><span style="color:var(--text-muted)">목표 ' + fmtGold(historyTarget) + '</span>' +
+            '<span style="color:var(--gold)">보유 ' + fmtGold(w.earned) + '</span></div>';
+          html += '<div class="badge ' + (ok ? "badge-ok" : "badge-miss") + '">' + (ok ? "달성" : ("미달 " + fmtGold(historyTarget - w.earned))) + '</div>';
+          html += '</div>';
+        });
+        if (state.history.length > 6) {
+          html += '<button class="more-btn" onclick="__gl.toggleHistory()">' +
+            (state.showAllHistory ? "접기" : (state.history.length - 6) + '개 더 보기') + '</button>';
+        }
+      }
+      html += '</section>';
+
+    } else {
+      // 아이템 계산기
+      var grandTotal = itemsGrandTotal(null, 0);
+      var grandTotalWon = goldToWon(grandTotal);
+      var itemRemainingWon = itemsRemainingWon();
+      var itemComplete = grandTotalWon >= (state.itemTarget || 0);
+      var itemProgress = state.itemTarget > 0 ? Math.min(100, (grandTotalWon / state.itemTarget) * 100) : 0;
+      if (state.design === "dashboard") html += '<div class="ar-heading"><h2 style="font-size:21px;margin:0">아이템 계산기</h2><span class="ar-hint">가격과 수량을 수정해 가치를 계산하세요</span></div>';
+      html += '<section class="card-panel item-calculator">';
+      html += '<div class="items-summary-box">';
+      html += '<div class="items-summary-label">보유 아이템 총 가치</div>';
+      html += '<div class="items-summary-value" id="items-grand-total">현금 기준 ' + fmtItemWon(grandTotalWon) + ' / 골드 기준 ' + fmtItemGold(grandTotal) + '</div>';
+      var itemTargetControl = '';
+      if (state.editingItemTarget) {
+        itemTargetControl = '<input id="item-target-input" class="items-target-input" value="' + fmtNum(state.itemTarget) + '" inputmode="numeric" ' +
+          'onblur="__gl.commitItemTarget()" onkeydown="if(event.key===\'Enter\'){this.blur();}" />';
+      } else {
+        itemTargetControl = '<span class="items-target-value" title="클릭해서 수정" onclick="__gl.startEditItemTarget()">' + fmtItemWon(state.itemTarget) + '</span>';
+      }
+      html += '<div class="goal-summary-line"><span>목표 ' + itemTargetControl + '</span><span>·</span><span><b class="goal-amount">' + fmtItemWon(grandTotalWon) + '</b> 달성</span><span>·</span><span><b class="goal-remaining">' + (itemComplete ? '목표 달성 ✦' : fmtItemWon(itemRemainingWon) + ' 남음') + '</b></span></div>';
+      html += '<div class="goal-progress-track"><div class="goal-progress-fill" style="width:' + itemProgress + '%"></div></div>';
+      html += '</div>';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-6px 0 12px;font-size:11.5px;color:var(--text-muted)"><span>가격 자동 갱신 · ' + esc(formatPriceUpdatedAt(state.itemPriceLastUpdated)) + '</span><button class="data-btn" style="padding:5px 9px" onclick="__gl.refreshItemPrices()">지금 갱신</button></div>';
+      html += '<div class="items-needed-box">';
+      html += '<div class="items-needed-title">목표금액까지 필요한 수량 <span style="font-weight:400;color:var(--text-muted)">(현재 보유 아이템의 현금 환산 가치는 공통으로 차감)</span></div>';
+      state.items.forEach(function (it) {
+        var needed = itemNeededQty(it.price || 0);
+        html += '<div class="items-needed-row">' +
+          '<div class="items-needed-name">' + esc(it.name) + '</div>' +
+          '<div class="items-needed-num">보유 ' + fmtNum(it.qty || 0) + '</div>' +
+          '<div class="items-needed-num">남은 ' + fmtItemWon(itemRemainingWon) + '</div>' +
+          '<div class="items-needed-num items-needed-positive">' + (needed === null ? '가격 입력 필요' : fmtNum(needed) + '개') + '</div>' +
+          '</div>';
+      });
+      html += '</div>';
+      html += '<div class="item-list-head"><span>아이템</span><span style="text-align:right">개당가격</span><span style="text-align:right">개수</span><span style="text-align:right">합계</span><span></span></div>';
+
+      if (state.items.length === 0) {
+        html += '<div class="empty-row">등록된 아이템이 없습니다.</div>';
+      } else {
+        state.items.forEach(function (it) {
+          html += '<div class="item-row">';
+          if (state.renamingItemId === it.id) {
+            html += '<input id="item-name-input" class="item-name-input" value="' + esc(it.name) + '" ' +
+              'onkeydown="__gl.keyEnter(event, function(){__gl.commitRenameItem(\'' + it.id + '\')})" ' +
+              'onblur="__gl.commitRenameItem(\'' + it.id + '\')" />';
+          } else {
+            html += '<div class="item-name" title="클릭해서 이름 수정" onclick="__gl.startRenameItem(\'' + it.id + '\')">' + esc(it.name) + '</div>';
+          }
+          if (state.editingItemPriceId === it.id) {
+            html += '<input id="item-price-input" class="item-edit-input" value="' + it.price + '" inputmode="numeric" ' +
+              'onkeydown="__gl.keyEnter(event, function(){__gl.commitItemPrice(\'' + it.id + '\')})" ' +
+              'onblur="__gl.commitItemPrice(\'' + it.id + '\')" />';
+          } else {
+            html += '<div class="item-price" title="클릭해서 가격 수정" onclick="__gl.startEditItemPrice(\'' + it.id + '\')">' + fmtNum(it.price) + '</div>';
+          }
+          html += '<input class="item-qty-input" aria-label="' + esc(it.name) + ' 보유 수량" type="text" inputmode="numeric" value="' + (it.qty || 0) + '" ' +
+            'oninput="__gl.onQtyInput(\'' + it.id + '\', this.value)" ' +
+            'onblur="__gl.commitQty(\'' + it.id + '\', this.value)" ' +
+            'onkeydown="if(event.key===\'Enter\'){this.blur();}" />';
+          html += '<div class="item-total" id="item-total-' + it.id + '">' + fmtItemGold((it.qty || 0) * (it.price || 0)) + '</div>';
+          html += '<button class="del-btn" onclick="__gl.deleteItem(\'' + it.id + '\')">×</button>';
+          html += '</div>';
+        });
+      }
+      html += '<button class="add-item-btn" onclick="__gl.addItem()">+ 아이템 추가</button>';
+      html += '</section>';
+    }
+
+    html += '<div class="footer-note">이 페이지의 기록은 이 브라우저에만 저장됩니다.<br>같은 브라우저·같은 파일 경로로 다시 열면 기록이 그대로 남아있어요.</div>';
+    html += '</div>';
+
+    document.getElementById("app").innerHTML = html;
+    isRendering = false;
+    if (renderQueued) {
+      renderQueued = false;
+      setTimeout(render, 0);
+    }
+  }
+
+  init();
+  setTimeout(function () { updateItemPrices(false); }, 700);
+  setInterval(function () { updateItemPrices(false); }, 60 * 1000);
+})();
+</script>
+</body>
+</html>
+
+
