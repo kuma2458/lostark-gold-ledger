@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.0.2">
+<meta name="application-version" content="1.1.0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -393,6 +393,58 @@
   .dashboard-theme .ar-period {font-size:15px;font-weight:500;line-height:1.5}
   .dashboard-theme .history-period {font-size:14px;font-weight:500;line-height:1.5}
   .dashboard-theme .entry-date {font-size:14px;font-weight:500;white-space:nowrap}
+
+  /* Item calculator: scoped responsive layout */
+  .dashboard-theme .calc-panel{padding:24px}
+  .calc-summary{padding:24px;background:linear-gradient(110deg,#2c281f,#202125);border:1px solid #514532;border-radius:8px}
+  .calc-overline{font-size:13px;color:#c6bdab}
+  .calc-totals{display:flex;gap:32px;margin:16px 0 18px;flex-wrap:wrap}
+  .calc-totals>div{display:flex;align-items:baseline;gap:12px}
+  .calc-totals>div+div{border-left:1px solid #514b3e;padding-left:32px}
+  .calc-totals span{font-size:14px;color:#c5bdaf}
+  .calc-totals strong{font-size:29px;letter-spacing:-.7px;font-weight:600;color:var(--gold);font-variant-numeric:tabular-nums}
+  .calc-assumption{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#aeb6c3}
+  .calc-link{border:0;background:none;padding:0;color:#c5d3e6;font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+  .calc-goal{border-top:1px solid #3b3934;margin-top:20px;padding-top:16px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;font-size:13px;color:#bbc2ce}
+  .calc-goal>span:first-child{display:flex;align-items:center;gap:5px}
+  .calc-goal>strong{margin-left:auto;font-size:15px;color:#eef0f5}
+  .calc-goal .calc-success{color:var(--green)}
+  .calc-track{height:4px;background:#3a3831;border-radius:4px;margin-top:16px;overflow:hidden}
+  .calc-track>div{height:100%;background:var(--gold)}
+  .calc-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:28px 0 12px}
+  .calc-toolbar h3{margin:0;font-size:16px}
+  .calc-toolbar h3 span{font-size:12px;color:#a7b0bf;margin-left:6px}
+  .calc-toolbar p{font-size:12px;color:#a7b0bf;margin:6px 0 0}
+  .calc-notice{min-height:36px;font-size:12px;color:#b8c3d2;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .calc-columns,.calc-row{display:grid;grid-template-columns:minmax(180px,1fr) 145px 125px 155px 36px;gap:12px;align-items:center}
+  .calc-columns{background:#252830;padding:10px 12px;color:#acb6c5;font-size:12px;border-radius:5px}
+  .calc-columns>span:not(:first-child){text-align:right}
+  .calc-row{padding:16px 12px;border-bottom:1px solid var(--border);min-height:84px}
+  .calc-row>div{min-width:0}
+  .calc-value{border:1px solid transparent;background:transparent;color:#e9edf5;font:inherit;font-size:15px;font-weight:500;padding:7px 5px;min-height:36px;border-radius:5px;cursor:pointer;font-variant-numeric:tabular-nums;max-width:100%;overflow-wrap:anywhere}
+  .calc-value:hover,.calc-value:focus-visible{background:#292e38;border-color:#424958}
+  .calc-pencil{font-size:12px;margin-left:6px;color:#9aa7bb}
+  .calc-name .calc-value{text-align:left}
+  .calc-cell{text-align:right}
+  .calc-subtotal{font-size:15px;color:var(--gold);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .calc-source{font-size:12px;color:#aab5c5;margin-top:4px}
+  .calc-source select{font:inherit;color:#c3cbd8;background:#20242b;border:1px solid #3b414e;border-radius:4px;padding:4px 6px;max-width:100%}
+  .calc-error,.calc-updated{margin:6px 0 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere;color:#ff97a8}
+  .calc-updated{color:#9aa8bb}
+  .calc-edit{width:100%;min-width:0;max-width:240px;background:#12151a;color:#f1f3f7;border:1px solid var(--gold);padding:8px;border-radius:5px;font:inherit;font-size:16px;text-align:inherit}
+  .calc-goal .calc-edit{width:140px}
+  .calc-delete{width:36px;min-height:40px;background:none;border:0;border-radius:5px;color:#aab5c5;font-size:20px;cursor:pointer}
+  .calc-delete:hover{background:#35242a;color:#ff97a8}
+  .calc-add{background:#252a33;color:#d4dce9;border:1px solid #3a414d;border-radius:6px;font:inherit;font-size:13px;padding:9px 14px;margin-top:16px;cursor:pointer}
+  .calc-needed{margin-top:28px;padding:18px 20px;background:#181b20;border:1px solid var(--border);border-radius:8px}
+  .calc-needed summary{font-size:14px;font-weight:600;cursor:pointer}
+  .calc-needed>p{font-size:12px;color:#aab5c5;line-height:1.7;margin:12px 0 16px}
+  .calc-needed-row{display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid var(--border);padding:14px 0;font-size:14px}
+  .calc-needed-row small{display:block;font-size:12px;color:#98a5b8;margin-top:5px}
+  .calc-needed-row strong{color:var(--gold);white-space:nowrap;font-size:16px;font-weight:600}
+  @media(max-width:900px){.calc-columns,.calc-row{grid-template-columns:minmax(140px,1fr) 110px 100px 120px 32px;gap:8px}.calc-totals{gap:20px}.calc-totals>div+div{padding-left:20px}.calc-totals strong{font-size:26px}}
+  @media(max-width:700px){.dashboard-theme .calc-panel{padding:16px}.calc-summary{padding:18px}.calc-columns{display:none}.calc-row{grid-template-columns:1fr 1fr 36px;gap:14px}.calc-name{grid-column:1/3}.calc-delete{grid-column:3;grid-row:1}.calc-row .calc-cell{grid-row:2;text-align:left}.calc-row .calc-subtotal{grid-row:3;grid-column:1/4;display:flex;justify-content:space-between}.calc-cell:before{content:attr(data-label);display:block;font-size:12px;color:#aab5c5;margin-bottom:5px}.calc-row{position:relative}.calc-row .calc-delete{grid-row:1;align-self:start}.calc-totals{flex-direction:column;gap:12px}.calc-totals>div+div{border:0;padding:0}.calc-goal{gap:10px}.calc-goal>strong{margin-left:0;width:100%}.calc-needed{padding:16px}.calc-needed-row{align-items:flex-start;flex-wrap:wrap;gap:8px}.calc-needed-row strong{margin-left:auto}.calc-toolbar{margin-top:22px}.calc-notice{flex-wrap:wrap}}
+
 </style>
 </head>
 <body>
@@ -614,7 +666,7 @@
   ];
   function loadItems() {
     var it = lsGet("items");
-    if (!it || !Array.isArray(it) || it.length === 0) {
+    if (!Array.isArray(it)) {
       it = DEFAULT_ITEMS.slice();
       lsSet("items", it);
     } else {
@@ -622,7 +674,7 @@
       // 기존에 겁화/작열로 나뉘어 저장된 데이터는 하나의 "4티어 8레벨 보석"으로 통합
       var gemBurn = it.find(function (cur) { return cur.id === "i2" || cur.name === "4티어 8레벨 겁화 보석"; });
       var gemHeat = it.find(function (cur) { return cur.id === "i3" || cur.name === "4티어 8레벨 작열 보석"; });
-      if (gemBurn || gemHeat) {
+      if (gemHeat || (gemBurn && gemBurn.name === "4티어 8레벨 겁화 보석")) {
         var mergedGem = gemBurn || gemHeat;
         mergedGem.id = "i2";
         mergedGem.name = "4티어 8레벨 보석";
@@ -631,14 +683,14 @@
         it = it.filter(function (cur) { return cur !== gemBurn && cur !== gemHeat; });
         it.push(mergedGem);
       }
-      DEFAULT_ITEMS.forEach(function (def) {
-        if (!it.some(function (cur) { return cur.id === def.id; })) it.push(def);
-      });
       it.forEach(function (cur) {
         if (cur.id === "i1" && cur.name === "상급 아비도스 융화재료") cur.name = "상급 아비도스 융화 재료";
       });
       lsSet("items", it);
     }
+    it.forEach(function (item) {
+      if (!item.priceMode) item.priceMode = "manual"; // Preserve existing user prices until explicitly opted in.
+    });
     return it;
   }
   function saveItems() { lsSet("items", state.items); scheduleSheetSync(); }
@@ -706,31 +758,44 @@
     if (!prices.length) throw new Error("8레벨 보석 매물이 없습니다");
     return Math.min.apply(Math, prices);
   }
+  var itemEdit = null, itemUndo = null, itemNotice = "", neededOpen = true;
+  function autoItem(it) { return (it.id === "i1" || it.id === "i2") && it.priceMode === "auto"; }
   async function updateItemPrices(force) {
-    if (state.itemPriceUpdating) return;
-    if (!state.itemPriceApiKey) return;
-    var intervalMs = state.itemPriceUpdateInterval * 60 * 1000;
-    if (!force && (!state.itemPriceLastUpdated || Date.now() - state.itemPriceLastUpdated < intervalMs)) return;
+    if (state.itemPriceUpdating || itemEdit) return;
+    if (!state.itemPriceApiKey) {
+      if (force) { itemNotice = "자동 시세를 사용하려면 데이터 메뉴에서 API 키를 설정해주세요."; render(); }
+      return;
+    }
+    var intervalMs = state.itemPriceUpdateInterval * 60000;
+    if (!force && state.itemPriceLastUpdated && Date.now() - state.itemPriceLastUpdated < intervalMs) return;
+    var targets = state.items.filter(autoItem);
+    if (!targets.length) {
+      if (force) { itemNotice = "자동 시세로 설정된 아이템이 없습니다. 직접 입력 가격은 유지됩니다."; render(); }
+      return;
+    }
     state.itemPriceUpdating = true;
+    state.itemPriceError = "";
     render();
-    var success = 0;
-    var messages = [];
-    try {
-      var fusion = await fetchMarketUnitPrice("상급 아비도스 융화 재료");
-      state.items = state.items.map(function (it) { return it.id === "i1" ? Object.assign({}, it, { price: fusion }) : it; });
-      success++;
-    } catch (e) { messages.push("아비도스: " + e.message); }
-    try {
-      var gem = await fetchGemUnitPrice();
-      state.items = state.items.map(function (it) { return it.id === "i2" ? Object.assign({}, it, { price: gem }) : it; });
-      success++;
-    } catch (e) { messages.push("8레벨 보석: " + e.message); }
+    var success = 0, failed = 0;
+    await Promise.all(targets.map(async function (target) {
+      try {
+        var value = target.id === "i1" ? await fetchMarketUnitPrice("상급 아비도스 융화 재료") : await fetchGemUnitPrice();
+        if (!(value > 0) || !Number.isFinite(value)) throw new Error("가격 응답을 확인해주세요");
+        var current = state.items.find(function (it) { return it.id === target.id; });
+        if (current && autoItem(current) && !(itemEdit && itemEdit.id === current.id && itemEdit.field === "price")) {
+          current.price = value; current.priceUpdatedAt = Date.now(); current.priceError = ""; success++;
+        }
+      } catch (error) {
+        var current = state.items.find(function (it) { return it.id === target.id; });
+        if (current && autoItem(current)) { current.priceError = "이전 가격 사용 중 · " + error.message; failed++; }
+      }
+    }));
     state.itemPriceUpdating = false;
-    if (success > 0) state.itemPriceLastUpdated = Date.now();
-    state.itemPriceError = messages.join(" / ");
-    saveItems();
-    saveSettings();
-    render();
+    state.itemPriceLastUpdated = Date.now();
+    state.itemPriceError = failed ? (success ? "일부 갱신 실패" : "가격 갱신 실패") : "";
+    itemNotice = failed ? state.itemPriceError + " · 아이템별 상태를 확인해주세요." : (success ? success + "개 아이템 가격 갱신 완료" : "편집 중이거나 직접 입력으로 전환한 가격은 유지했습니다.");
+    saveItems(); saveSettings();
+    if (!itemEdit) render();
   }
   function formatPriceUpdatedAt(ts) {
     if (!ts) return "아직 가격 갱신 기록 없음";
@@ -1294,83 +1359,82 @@
       render();
     },
     addItem: function () {
-      var item = { id: "it" + Date.now(), name: "새 아이템", price: 0, qty: 0 };
-      state.items = [item].concat(state.items);
-      saveItems();
-      render();
+      var item = { id: "it" + Date.now(), name: "새 아이템", price: 0, qty: 0, priceMode: "manual" };
+      state.items.push(item); saveItems(); itemNotice = "아이템 추가 · 이름을 눌러 수정하세요."; render();
     },
     deleteItem: function (id) {
-      if (!confirm("이 아이템을 삭제할까요?")) return;
-      state.items = state.items.filter(function (it) { return it.id !== id; });
-      saveItems();
-      render();
+      var index = state.items.findIndex(function (it) { return it.id === id; });
+      if (index < 0) return;
+      itemUndo = { type: "delete", index: index, item: Object.assign({}, state.items[index]) };
+      state.items.splice(index, 1); saveItems(); itemNotice = "아이템 삭제 · 저장됨"; render();
     },
-    startRenameItem: function (id) {
-      state.renamingItemId = id;
+    editCalc: function (id, field) {
+      itemEdit = { id: id, field: field };
       render();
-      var el = document.getElementById("item-name-input");
-      if (el) { el.focus(); el.select(); }
+      var input = document.getElementById("calc-editor");
+      if (input) { input.focus(); input.select(); }
     },
-    commitRenameItem: function (id) {
-      var el = document.getElementById("item-name-input");
-      var name = el ? el.value.trim() : "";
-      state.renamingItemId = null;
-      if (name) {
-        state.items = state.items.map(function (it) { return it.id === id ? Object.assign({}, it, { name: name }) : it; });
+    cancelCalc: function () { itemEdit = null; itemNotice = "수정을 취소했습니다."; render(); },
+    commitCalc: function (input) {
+      if (!itemEdit) return;
+      var edit = itemEdit, text = input.value.trim(), value;
+      if (edit.field === "name") {
+        if (!text) { input.setCustomValidity("아이템 이름을 입력해주세요."); input.reportValidity(); return; }
+        value = text.slice(0, 100);
+      } else {
+        if (!/^(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)$/.test(text)) {
+          input.setCustomValidity("0 이상의 정수를 입력해주세요. 소수와 음수는 사용할 수 없습니다."); input.reportValidity(); return;
+        }
+        value = Number(text.replace(/,/g, ""));
+        if (!Number.isSafeInteger(value) || value > 1000000000000) {
+          input.setCustomValidity("입력 가능한 범위를 초과했습니다."); input.reportValidity(); return;
+        }
+      }
+      if (edit.field === "target") {
+        itemUndo = { type: "target", value: state.itemTarget };
+        state.itemTarget = value; saveSettings();
+      } else {
+        var it = state.items.find(function (it) { return it.id === edit.id; });
+        if (!it) { itemEdit = null; render(); return; }
+        if (edit.field === "price" || edit.field === "qty") {
+          var nextTotal = state.items.reduce(function (sum, row) {
+            return sum + (row.id === it.id && edit.field === "price" ? value : row.price || 0) * (row.id === it.id && edit.field === "qty" ? value : row.qty || 0);
+          }, 0);
+          if (!Number.isSafeInteger(nextTotal)) { input.setCustomValidity("총액이 정확하게 계산할 수 있는 범위를 초과했습니다."); input.reportValidity(); return; }
+        }
+        itemUndo = { type: "field", id: it.id, field: edit.field, value: it[edit.field], priceMode: it.priceMode, priceError: it.priceError };
+        it[edit.field] = value;
+        if (edit.field === "price") { it.priceMode = "manual"; it.priceError = ""; }
         saveItems();
       }
+      itemEdit = null;
+      itemNotice = state.error ? "저장 상태를 확인해주세요." : "변경 저장됨";
       render();
     },
-    startEditItemPrice: function (id) {
-      state.editingItemPriceId = id;
-      render();
-      var el = document.getElementById("item-price-input");
-      if (el) { el.focus(); el.select(); }
-    },
-    commitItemPrice: function (id) {
-      var el = document.getElementById("item-price-input");
-      var price = parseInt(String(el ? el.value : "").replace(/[^0-9]/g, ""), 10);
-      if (isNaN(price)) price = 0;
-      state.editingItemPriceId = null;
-      state.items = state.items.map(function (it) { return it.id === id ? Object.assign({}, it, { price: price }) : it; });
-      saveItems();
-      render();
-    },
-    onQtyInput: function (id, value) {
-      var qty = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
-      if (isNaN(qty)) qty = 0;
-      var item = state.items.filter(function (it) { return it.id === id; })[0];
-      if (!item) return;
-      var totalEl = document.getElementById("item-total-" + id);
-      if (totalEl) totalEl.textContent = fmtItemGold(qty * (item.price || 0));
-      var grandEl = document.getElementById("items-grand-total");
-      if (grandEl) {
-        var grandTotal = itemsGrandTotal(id, qty);
-        grandEl.textContent = '현금 기준 ' + fmtItemWon(goldToWon(grandTotal)) + ' / 골드 기준 ' + fmtItemGold(grandTotal);
+    undoCalc: function () {
+      if (!itemUndo) return;
+      var u = itemUndo; itemUndo = null;
+      if (u.type === "target") { state.itemTarget = u.value; saveSettings(); }
+      else {
+        if (u.type === "delete") state.items.splice(u.index, 0, u.item);
+        else {
+          var it = state.items.find(function (it) { return it.id === u.id; });
+          if (it) {
+            it[u.field] = u.value;
+            if (u.field === "price") { it.priceMode = u.priceMode; it.priceError = u.priceError; }
+          }
+        }
+        saveItems();
       }
+      itemNotice = "직전 변경을 되돌렸습니다."; render();
     },
-    commitQty: function (id, value) {
-      var qty = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
-      if (isNaN(qty)) qty = 0;
-      state.items = state.items.map(function (it) { return it.id === id ? Object.assign({}, it, { qty: qty }) : it; });
-      saveItems();
-      render();
+    setPriceMode: function (id, mode) {
+      var it = state.items.find(function (it) { return it.id === id; });
+      if (!it) return;
+      it.priceMode = mode; it.priceError = ""; itemUndo = null;
+      saveItems(); itemNotice = mode === "auto" ? "자동 시세 사용 · 지금 갱신을 눌러 최신 가격을 가져오세요." : "직접 입력 가격은 자동 갱신에서 제외됩니다."; render();
     },
-    startEditItemTarget: function () {
-      state.editingItemTarget = true;
-      render();
-      var el = document.getElementById("item-target-input");
-      if (el) { el.focus(); el.select(); }
-    },
-    commitItemTarget: function () {
-      var el = document.getElementById("item-target-input");
-      var v = parseInt(String(el ? el.value : "").replace(/[^0-9]/g, ""), 10);
-      if (isNaN(v)) v = 0;
-      state.itemTarget = v;
-      state.editingItemTarget = false;
-      saveSettings();
-      render();
-    },
+    neededToggle: function (open) { neededOpen = open; },
     keyEnter: function (evt, fn) {
       if (evt.key === "Enter") fn();
     }
@@ -1425,7 +1489,43 @@ var dashboardPortraits = [];
     html += '</select><label for="entry-amount">판매 금액</label><div class="ar-inputbox"><input id="entry-amount" aria-label="판매 골드 (만 단위)" placeholder="0" inputmode="decimal" onkeydown="__gl.keyEnter(event, __gl.addEntry)" /><span>만 골드</span></div><button type="button" class="ar-submit" onclick="__gl.addEntry()">판매 등록</button><p class="ar-formnote">선택 계정의 보유액과<br>이번 주 목표에서 함께 차감됩니다.</p></div><div class="ar-salesum"><span>이번 주 판매 합계</span><strong>' + fmtGold(totalSold(state.entries)) + ' 골드</strong></div></aside></div>';
     return html;
   }
+  function calcControl(id, field, value, label) {
+    var editing = itemEdit && itemEdit.id === id && itemEdit.field === field;
+    if (editing) return '<input id="calc-editor" class="calc-edit" aria-label="' + esc(label) + '" value="' + esc(field === "name" ? value : fmtNum(value)) + '" inputmode="' + (field === "name" ? "text" : "numeric") + '" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCalc(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCalc(this);}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelCalc();}" />';
+    return '<button type="button" class="calc-value" data-id="' + esc(id) + '" data-field="' + field + '" aria-label="' + esc(label + " 수정") + '" onclick="__gl.editCalc(this.dataset.id,this.dataset.field)">' + esc(field === "name" ? value : fmtNum(value)) + '<span class="calc-pencil" aria-hidden="true">✎</span></button>';
+  }
+  function renderCalculator() {
+    var total = itemsGrandTotal(null, 0), won = goldToWon(total), target = state.itemTarget || 0;
+    var remaining = Math.max(0, target - won), percentage = target > 0 ? won / target * 100 : 0;
+    var complete = target > 0 && remaining === 0;
+    var html = '<div class="ar-heading"><h2 style="font-size:21px;margin:0">아이템 계산기</h2><span class="ar-hint">보유 수량으로 확인하는 예상 판매 가치</span></div><section class="card-panel calc-panel">';
+    html += '<div class="calc-summary"><div class="calc-overline">보유 아이템 · 예상 판매 가치</div><div class="calc-totals"><div><span>현금 환산</span><strong id="calc-cash">' + fmtItemWon(won) + '</strong></div><div><span>골드 기준</span><strong id="calc-gold">' + fmtItemGold(total) + '</strong></div></div>';
+    html += '<div class="calc-assumption"><button class="calc-link" onclick="__gl.openRateModal()">1만 골드 = ' + fmtNum(state.exchangeRate) + '원 · 환율 수정</button><span>수수료 차감 전 · 실제 판매 수익과 다를 수 있음</span></div>';
+    html += '<div class="calc-goal"><span>목표 ' + calcControl("", "target", target, "목표 금액 (원)") + '원</span><span>' + (target > 0 ? '목표 대비 예상 가치 <b>' + percentage.toFixed(1) + '%</b>' : '목표 금액을 설정해주세요') + '</span><strong class="' + (complete ? 'calc-success' : '') + '">' + (target > 0 ? (complete ? '목표 가치 확보' : '목표까지 ' + fmtItemWon(remaining) + ' 부족') : '') + '</strong></div>';
+    html += '<div class="calc-track" role="progressbar" aria-label="목표 대비 예상 가치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.min(100, percentage) + '"><div style="width:' + Math.min(100, percentage) + '%"></div></div></div>';
+    html += '<div class="calc-toolbar"><div><h3>보유 아이템 <span>' + state.items.length + '</span></h3><p>' + (state.itemPriceUpdating ? '가격 갱신 중…' : esc(formatPriceUpdatedAt(state.itemPriceLastUpdated))) + '</p></div><button class="data-btn" onclick="__gl.refreshItemPrices()" ' + (state.itemPriceUpdating ? 'disabled' : '') + '>지금 갱신</button></div>';
+    html += '<div class="calc-notice" role="status">' + esc(itemNotice || '금액과 수량을 눌러 수정 · Enter 저장 / Esc 취소') + (itemUndo ? '<button class="calc-link" onclick="__gl.undoCalc()">실행 취소</button>' : '') + '</div>';
+    html += '<div class="calc-columns"><span>아이템</span><span>개당 가격 (G)</span><span>보유 수량</span><span>합계 (G)</span><span></span></div>';
+    state.items.forEach(function (it) {
+      html += '<div class="calc-row"><div class="calc-name">' + calcControl(it.id, "name", it.name, "아이템 이름") + '<div class="calc-source">';
+      if (it.id === "i1" || it.id === "i2") html += '<select aria-label="' + esc(it.name) + ' 가격 방식" data-id="' + esc(it.id) + '" onchange="__gl.setPriceMode(this.dataset.id,this.value)"><option value="manual"' + (!autoItem(it) ? ' selected' : '') + '>직접 입력</option><option value="auto"' + (autoItem(it) ? ' selected' : '') + '>자동 시세</option></select>';
+      else html += '<span>직접 입력</span>';
+      html += '</div>' + (it.priceError ? '<p class="calc-error">' + esc(it.priceError) + '</p>' : (autoItem(it) ? '<p class="calc-updated">' + esc(formatPriceUpdatedAt(it.priceUpdatedAt)) + '</p>' : '')) + '</div>';
+      html += '<div class="calc-cell" data-label="개당 가격 (G)">' + calcControl(it.id, "price", it.price || 0, it.name + " 개당 가격") + '</div><div class="calc-cell" data-label="보유 수량">' + calcControl(it.id, "qty", it.qty || 0, it.name + " 보유 수량") + '</div><div class="calc-subtotal calc-cell" data-label="합계 (G)">' + fmtNum((it.price || 0) * (it.qty || 0)) + '</div><button class="calc-delete" aria-label="' + esc(it.name) + ' 삭제" data-id="' + esc(it.id) + '" onclick="__gl.deleteItem(this.dataset.id)">×</button></div>';
+    });
+    if (!state.items.length) html += '<div class="empty-row">등록된 아이템이 없습니다. 아래에서 추가하세요.</div>';
+    html += '<button class="calc-add" onclick="__gl.addItem()">＋ 아이템 추가</button>';
+    html += '<details class="calc-needed" ' + (neededOpen ? 'open' : '') + ' ontoggle="__gl.neededToggle(this.open)"><summary>목표까지 추가로 필요한 수량</summary><p>현재 보유 아이템을 모두 판매한다고 가정합니다. 아래 항목은 각각의 대안이며, 함께 확보할 필요는 없습니다.</p>';
+    state.items.forEach(function (it) {
+      var qty = itemNeededQty(it.price || 0);
+      html += '<div class="calc-needed-row"><span>' + esc(it.name) + '<small>이 아이템만 추가 확보하면</small></span><strong>' + (target <= 0 ? '목표 설정 필요' : qty === null ? '가격 입력 필요' : qty === 0 ? '추가 확보 불필요' : '+' + fmtNum(qty) + '개') + '</strong></div>';
+    });
+    return html + '</details></section>';
+  }
+
   function render() {
+    // Background sync must not replace an active calculator draft or its caret.
+    if (itemEdit && document.activeElement && document.activeElement.id === "calc-editor") return;
     if (isRendering) {
       renderQueued = true;
       return;
@@ -1632,16 +1732,6 @@ var dashboardPortraits = [];
       html += '</div>';
       html += '</section>';
 
-      if (state.rateModalOpen) {
-        html += '<div class="overlay" onclick="__gl.closeRateModal()"><div class="modal" onclick="event.stopPropagation()">';
-        html += '<div class="modal-title">골드 환율 (1만골드 당 원)</div>';
-        html += '<input id="rate-input" class="modal-input" value="' + state.exchangeRate + '" inputmode="numeric" ' +
-          'onkeydown="__gl.keyEnter(event, __gl.saveRate)" />';
-        html += '<div class="modal-row"><button class="ghost-btn" onclick="__gl.closeRateModal()">취소</button>' +
-          '<button class="gold-btn" onclick="__gl.saveRate()">저장</button></div>';
-        html += '</div></div>';
-      }
-
       // 내역 리스트
       html += '<section class="entries-section">';
       html += '<div class="section-label">보유액 변경 · 판매 내역 (' + state.entries.length + ')</div>';
@@ -1701,75 +1791,21 @@ var dashboardPortraits = [];
       html += '</section>';
 
     } else {
-      // 아이템 계산기
-      var grandTotal = itemsGrandTotal(null, 0);
-      var grandTotalWon = goldToWon(grandTotal);
-      var itemRemainingWon = itemsRemainingWon();
-      var itemComplete = grandTotalWon >= (state.itemTarget || 0);
-      var itemProgress = state.itemTarget > 0 ? Math.min(100, (grandTotalWon / state.itemTarget) * 100) : 0;
-      if (state.design === "dashboard") html += '<div class="ar-heading"><h2 style="font-size:21px;margin:0">아이템 계산기</h2><span class="ar-hint">가격과 수량을 수정해 가치를 계산하세요</span></div>';
-      html += '<section class="card-panel item-calculator">';
-      html += '<div class="items-summary-box">';
-      html += '<div class="items-summary-label">보유 아이템 총 가치</div>';
-      html += '<div class="items-summary-value" id="items-grand-total">현금 기준 ' + fmtItemWon(grandTotalWon) + ' / 골드 기준 ' + fmtItemGold(grandTotal) + '</div>';
-      var itemTargetControl = '';
-      if (state.editingItemTarget) {
-        itemTargetControl = '<input id="item-target-input" class="items-target-input" value="' + fmtNum(state.itemTarget) + '" inputmode="numeric" ' +
-          'onblur="__gl.commitItemTarget()" onkeydown="if(event.key===\'Enter\'){this.blur();}" />';
-      } else {
-        itemTargetControl = '<span class="items-target-value" title="클릭해서 수정" onclick="__gl.startEditItemTarget()">' + fmtItemWon(state.itemTarget) + '</span>';
-      }
-      html += '<div class="goal-summary-line"><span>목표 ' + itemTargetControl + '</span><span>·</span><span><b class="goal-amount">' + fmtItemWon(grandTotalWon) + '</b> 달성</span><span>·</span><span><b class="goal-remaining">' + (itemComplete ? '목표 달성 ✦' : fmtItemWon(itemRemainingWon) + ' 남음') + '</b></span></div>';
-      html += '<div class="goal-progress-track"><div class="goal-progress-fill" style="width:' + itemProgress + '%"></div></div>';
-      html += '</div>';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-6px 0 12px;font-size:11.5px;color:var(--text-muted)"><span>가격 자동 갱신 · ' + esc(formatPriceUpdatedAt(state.itemPriceLastUpdated)) + '</span><button class="data-btn" style="padding:5px 9px" onclick="__gl.refreshItemPrices()">지금 갱신</button></div>';
-      html += '<div class="items-needed-box">';
-      html += '<div class="items-needed-title">목표금액까지 필요한 수량 <span style="font-weight:400;color:var(--text-muted)">(현재 보유 아이템의 현금 환산 가치는 공통으로 차감)</span></div>';
-      state.items.forEach(function (it) {
-        var needed = itemNeededQty(it.price || 0);
-        html += '<div class="items-needed-row">' +
-          '<div class="items-needed-name">' + esc(it.name) + '</div>' +
-          '<div class="items-needed-num">보유 ' + fmtNum(it.qty || 0) + '</div>' +
-          '<div class="items-needed-num">남은 ' + fmtItemWon(itemRemainingWon) + '</div>' +
-          '<div class="items-needed-num items-needed-positive">' + (needed === null ? '가격 입력 필요' : fmtNum(needed) + '개') + '</div>' +
-          '</div>';
-      });
-      html += '</div>';
-      html += '<div class="item-list-head"><span>아이템</span><span style="text-align:right">개당가격</span><span style="text-align:right">개수</span><span style="text-align:right">합계</span><span></span></div>';
-
-      if (state.items.length === 0) {
-        html += '<div class="empty-row">등록된 아이템이 없습니다.</div>';
-      } else {
-        state.items.forEach(function (it) {
-          html += '<div class="item-row">';
-          if (state.renamingItemId === it.id) {
-            html += '<input id="item-name-input" class="item-name-input" value="' + esc(it.name) + '" ' +
-              'onkeydown="__gl.keyEnter(event, function(){__gl.commitRenameItem(\'' + it.id + '\')})" ' +
-              'onblur="__gl.commitRenameItem(\'' + it.id + '\')" />';
-          } else {
-            html += '<div class="item-name" title="클릭해서 이름 수정" onclick="__gl.startRenameItem(\'' + it.id + '\')">' + esc(it.name) + '</div>';
-          }
-          if (state.editingItemPriceId === it.id) {
-            html += '<input id="item-price-input" class="item-edit-input" value="' + it.price + '" inputmode="numeric" ' +
-              'onkeydown="__gl.keyEnter(event, function(){__gl.commitItemPrice(\'' + it.id + '\')})" ' +
-              'onblur="__gl.commitItemPrice(\'' + it.id + '\')" />';
-          } else {
-            html += '<div class="item-price" title="클릭해서 가격 수정" onclick="__gl.startEditItemPrice(\'' + it.id + '\')">' + fmtNum(it.price) + '</div>';
-          }
-          html += '<input class="item-qty-input" aria-label="' + esc(it.name) + ' 보유 수량" type="text" inputmode="numeric" value="' + (it.qty || 0) + '" ' +
-            'oninput="__gl.onQtyInput(\'' + it.id + '\', this.value)" ' +
-            'onblur="__gl.commitQty(\'' + it.id + '\', this.value)" ' +
-            'onkeydown="if(event.key===\'Enter\'){this.blur();}" />';
-          html += '<div class="item-total" id="item-total-' + it.id + '">' + fmtItemGold((it.qty || 0) * (it.price || 0)) + '</div>';
-          html += '<button class="del-btn" onclick="__gl.deleteItem(\'' + it.id + '\')">×</button>';
-          html += '</div>';
-        });
-      }
-      html += '<button class="add-item-btn" onclick="__gl.addItem()">+ 아이템 추가</button>';
-      html += '</section>';
+      html += renderCalculator();
     }
 
-    html += '<div class="footer-note">이 페이지의 기록은 이 브라우저에만 저장됩니다.<br>같은 브라우저·같은 파일 경로로 다시 열면 기록이 그대로 남아있어요.</div>';
+      if (state.rateModalOpen) {
+        html += '<div class="overlay" onclick="__gl.closeRateModal()"><div class="modal" onclick="event.stopPropagation()">';
+        html += '<div class="modal-title">골드 환율 (1만골드 당 원)</div>';
+        html += '<input id="rate-input" class="modal-input" value="' + state.exchangeRate + '" inputmode="numeric" ' +
+          'onkeydown="__gl.keyEnter(event, __gl.saveRate)" />';
+        html += '<div class="modal-row"><button class="ghost-btn" onclick="__gl.closeRateModal()">취소</button>' +
+          '<button class="gold-btn" onclick="__gl.saveRate()">저장</button></div>';
+        html += '</div></div>';
+      }
+
+
+    html += '<div class="footer-note">이 페이지의 기록은 이 브라우저에만 저장됩니다.<br>같은 브라우저·사이트 주소에 저장됩니다. 다른 기기로 옮길 때는 JSON 백업을 사용하세요.</div>';
     html += '</div>';
 
     document.getElementById("app").innerHTML = html;
