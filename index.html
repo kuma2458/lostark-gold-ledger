@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.0.1">
+<meta name="application-version" content="1.0.2">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -398,6 +398,7 @@
 <body>
 <div id="app"></div>
 <input id="import-file-input" type="file" accept="application/json" style="display:none" onchange="__gl.handleImportFile(event)">
+<input id="portrait-file-input" type="file" accept="application/json" style="display:none" onchange="__gl.handlePortraitImport(event)">
 
 <script>
 (function () {
@@ -1035,6 +1036,51 @@
       var el = document.getElementById("import-file-input");
       if (el) el.click();
     },
+    triggerPortraitImport: function () {
+      document.getElementById("portrait-file-input").click();
+    },
+    handlePortraitImport: function (evt) {
+      var file = evt.target.files && evt.target.files[0];
+      evt.target.value = "";
+      if (!file) return;
+      if (file.size > 3000000) { alert("사진 복원 파일은 3MB 이하여야 합니다."); return; }
+      var reader = new FileReader();
+      reader.onerror = function () { alert("파일을 읽을 수 없습니다."); };
+      reader.onload = function () {
+        try {
+          var pack = JSON.parse(reader.result);
+          if (!Array.isArray(pack.portraitImages) || pack.portraitImages.length > 20 || !pack.portraitImages.length || !pack.portraitImages.every(validPortrait)) throw new Error("사진 파일 형식을 확인해주세요.");
+          var aliases = Array.isArray(pack.portraitNames) ? pack.portraitNames : [];
+          var bindings = {};
+          state.accounts.forEach(function (account) {
+            var old = dashboardPhotoIds[account.id];
+            var match = aliases.findIndex(function (names) { return Array.isArray(names) && names.indexOf(account.name.trim()) >= 0; });
+            if (match >= 0) bindings[account.id] = match;
+            else if (Number.isInteger(old) && old >= 0 && old < pack.portraitImages.length) bindings[account.id] = old;
+          });
+          var matched = Object.keys(bindings).length;
+          if (!matched) throw new Error("일치하는 계정이 없습니다. 기존 장부 JSON을 먼저 가져오고 계정 이름을 확인해주세요.");
+          if (!confirm(matched + "개 계정의 사진을 복원합니다. 골드 기록과 설정은 변경하지 않습니다. 계속할까요?")) return;
+          var oldImages = localStorage.getItem(STORAGE_PREFIX + "portraitImages");
+          var oldBindings = localStorage.getItem(STORAGE_PREFIX + "portraitBindings");
+          try {
+            localStorage.setItem(STORAGE_PREFIX + "portraitImages", JSON.stringify(pack.portraitImages));
+            localStorage.setItem(STORAGE_PREFIX + "portraitBindings", JSON.stringify(bindings));
+          } catch (storageError) {
+            if (oldImages === null) localStorage.removeItem(STORAGE_PREFIX + "portraitImages");
+            else localStorage.setItem(STORAGE_PREFIX + "portraitImages", oldImages);
+            if (oldBindings === null) localStorage.removeItem(STORAGE_PREFIX + "portraitBindings");
+            else localStorage.setItem(STORAGE_PREFIX + "portraitBindings", oldBindings);
+            throw new Error("사진 저장 공간이 부족합니다. 기존 사진은 유지됩니다.");
+          }
+          dashboardPortraits = pack.portraitImages;
+          dashboardPhotoIds = bindings;
+          render();
+          alert(matched + "개 계정의 사진을 복원했습니다. 이제 JSON 내보내기에 사진도 포함됩니다.");
+        } catch (error) { alert(error.message || "사진 복원 파일을 확인해주세요."); }
+      };
+      reader.readAsText(file);
+    },
     handleImportFile: function (evt) {
       var file = evt.target.files && evt.target.files[0];
       if (!file) return;
@@ -1335,9 +1381,17 @@
   var renderQueued = false;
 var dashboardPortraits = [];
   var dashboardPhotoNames = [];
+  function validPortrait(value) {
+    return typeof value === "string" && value.length <= 1000000 && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
+  }
+  var savedPortraits = lsGet("portraitImages");
+  if (Array.isArray(savedPortraits) && savedPortraits.length <= 20) {
+    dashboardPortraits = savedPortraits.map(function (value) { return validPortrait(value) ? value : ""; });
+  }
   var dashboardPhotoIds = lsGet("portraitBindings") || {};
   function dashboardPhotoIndex(account) {
-    return -1; // No personal portraits in the distribution.
+    var index = dashboardPhotoIds[account.id];
+    return Number.isInteger(index) && index >= 0 && validPortrait(dashboardPortraits[index]) ? index : -1;
   }
   function renderDashboard(earned, target, remaining) {
     var html = '<div class="ar-heading"><h2 style="font-size:21px;margin:0">주간 골드 현황</h2><div class="ar-period">' + fmtShort(state.weekStart) + ' ~ ' + fmtShort(state.weekEnd) + '</div></div>';
@@ -1429,9 +1483,12 @@ var dashboardPortraits = [];
         (state.itemPriceError ? '<div style="font-size:11.5px;color:var(--rust);margin-top:6px">' + esc(state.itemPriceError) + '</div>' : '') + '</div>';
 
       html += '<div class="data-section"><div class="data-section-title">백업 (JSON)</div>' +
-        '<div class="data-section-desc">계정·기록·설정을 통째로 파일로 저장하거나 복원해요. 브라우저를 바꾸거나 캐시가 지워져도 이 파일로 복구할 수 있어요.</div>' +
+        '<div class="data-section-desc">계정·기록·설정과 복원한 캐릭터 사진을 저장합니다. API 키는 제외됩니다. 백업에는 개인정보가 있으니 GitHub에 올리지 마세요.</div>' +
         '<div class="data-btn-row"><button class="data-btn" onclick="__gl.exportJSON()">내보내기</button>' +
         '<button class="data-btn" onclick="__gl.triggerImport()">가져오기</button></div></div>';
+      html += '<div class="data-section"><div class="data-section-title">캐릭터 사진 복원</div>' +
+        '<div class="data-section-desc">이전 HTML에서 추출한 사진 전용 JSON을 불러옵니다. 골드 기록은 유지하고, 사진은 이 브라우저에만 저장합니다.</div>' +
+        '<button class="data-btn" onclick="__gl.triggerPortraitImport()">사진 복원 파일 가져오기</button></div>';
 
       html += '<div class="data-section"><div class="data-section-title">주간 히스토리 CSV</div>' +
         '<div class="data-section-desc">이번 주 포함 전체 주차 기록을 CSV로 내려받아요. 구글 스프레드시트에서 "파일 → 가져오기"로 열 수 있어요.</div>' +
