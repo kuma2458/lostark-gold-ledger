@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.1.1">
+<meta name="application-version" content="1.1.2">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -211,6 +211,7 @@
   .error-bar { background: rgba(251, 113, 133, 0.15); border: 1px solid var(--rust); color: var(--text); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; }
   .sync-msg { background: rgba(52, 211, 153, 0.12); border: 1px solid var(--green); color: var(--text); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; }
   .footer-note { text-align: center; font-size: 11.5px; color: var(--text-muted); margin-top: 32px; line-height: 1.6; }
+  .app-version { margin-bottom: 8px; font-size: 13px; color: #bbc5d5; font-variant-numeric: tabular-nums; }
 
   /* 데이터 관리 모달 */
   .data-modal { max-width: 380px; max-height: 85vh; overflow-y: auto; }
@@ -1805,7 +1806,7 @@ var dashboardPortraits = [];
       }
 
 
-    html += '<div class="footer-note">이 페이지의 기록은 이 브라우저에만 저장됩니다.<br>같은 브라우저·사이트 주소에 저장됩니다. 다른 기기로 옮길 때는 JSON 백업을 사용하세요.</div>';
+    html += '<div class="footer-note"><div class="app-version">골드 장부 · v' + esc(document.querySelector('meta[name="application-version"]').content) + '</div>이 페이지의 기록은 이 브라우저에만 저장됩니다.<br>같은 브라우저·사이트 주소에 저장됩니다. 다른 기기로 옮길 때는 JSON 백업을 사용하세요.</div>';
     html += '</div>';
 
     document.getElementById("app").innerHTML = html;

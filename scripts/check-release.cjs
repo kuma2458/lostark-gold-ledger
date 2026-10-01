@@ -9,6 +9,7 @@ const errors = [];
 function check(ok, message) { if (!ok) errors.push(message); }
 check(/^\d+\.\d+\.\d+$/.test(version), 'Invalid version');
 check(html.includes('name="application-version" content="' + version + '"'), 'Version mismatch');
+check(html.includes('class="app-version"') && html.includes('document.querySelector(\'meta[name="application-version"]\').content'), 'Footer must display the shared application version');
 for (const [pattern, message] of [
   [/data:image\//i, 'Embedded image found'],
   [/https:\/\/script\.google\.com\/macros\/s\/(?!\.\.\.)[A-Za-z0-9_-]{10,}/, 'Deployed script URL found'],
