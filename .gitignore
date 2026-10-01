@@ -8,4 +8,8 @@
 !/VERSION
 !/scripts/
 !/scripts/check-release.cjs
+!/scripts/verify-live.cjs
+!/.github/
+!/.github/workflows/
+!/.github/workflows/pages.yml
 
