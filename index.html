@@ -545,12 +545,13 @@
 
   // ---------- localStorage ----------
   var storageReady = false, storageSnapshot = "", storageNotice = "";
+  var ledgerUndo = [], ledgerNotice = "", saleAccount = "", saleDraft = "";
   function storageFingerprint() {
     return JSON.stringify(Object.keys(localStorage).filter(function (k) { return k.indexOf(STORAGE_PREFIX) === 0; }).sort().map(function (k) { return [k, localStorage.getItem(k)]; }));
   }
   function refreshAfterConflict(message) {
     storageReady = false;
-    itemEdit = null; itemUndo = null;
+    itemEdit = null; itemUndo = null; ledgerNotice = ""; saleDraft = "";
     state.editingCarriedAccountId = null; state.editingTarget = false; state.editingEntryId = null;
     storageNotice = message;
     init();
@@ -883,6 +884,7 @@
     state.weekCarriedEarned = wk.carriedEarned || 0;
     state.weekCarriedByAccount = wk.carriedByAccount || {};
     state.entries = wk.entries || [];
+    ledgerUndo = Array.isArray(wk.undo) ? wk.undo.slice(0, 5) : [];
   }
 
   function loadHistory() {
@@ -905,9 +907,22 @@
     state.history = list;
   }
 
-  function saveCurrentWeek() {
-    setWeek(state.weekKey, { target: state.weekTarget, carry: state.weekCarry, carriedEarned: state.weekCarriedEarned, carriedByAccount: state.weekCarriedByAccount, entries: state.entries });
+  function saveCurrentWeek(skipUndo) {
+    var previous = getWeek(state.weekKey);
+    if (!skipUndo && previous) {
+      var snapshot = Object.assign({}, previous); delete snapshot.undo;
+      ledgerUndo = [snapshot].concat(ledgerUndo).slice(0, 5);
+      ledgerNotice = "변경을 저장했습니다. 최근 5단계까지 되돌릴 수 있습니다.";
+    }
+    setWeek(state.weekKey, { target: state.weekTarget, carry: state.weekCarry, carriedEarned: state.weekCarriedEarned, carriedByAccount: state.weekCarriedByAccount, entries: state.entries, undo: ledgerUndo });
     scheduleSheetSync();
+  }
+  function updateSalePreview() {
+    var account = document.getElementById("entry-account"), input = document.getElementById("entry-amount"), preview = document.getElementById("sale-preview");
+    if (!account || !input || !preview) return;
+    saleAccount = account.value; saleDraft = input.value; input.setCustomValidity("");
+    var amount = parseGoldInput(input.value, false), balance = totalAccountEarned(state.weekCarriedByAccount, state.entries, saleAccount);
+    preview.textContent = !input.value.trim() ? "선택 계정 보유 " + fmtGold(balance) + " · 만 골드 단위 입력" : amount === null || amount <= 0 ? "0보다 큰 금액을 입력해주세요." : amount > balance ? "보유액을 초과합니다. 판매 금액을 확인해주세요." : "판매 후 보유 " + fmtGold(balance - amount) + " · 남은 목표 " + fmtGold(Math.max(0, effectiveWeekTarget(state.weekTarget, state.entries) - amount));
   }
   function accountNameById(id) {
     var found = state.accounts.filter(function (a) { return a.id === id; })[0];
@@ -1077,6 +1092,21 @@
 
   // ---------- 액션 ----------
   window.__gl = {
+    updateSalePreview: updateSalePreview,
+    previewBalance: function (el) {
+      el.setCustomValidity("");
+      var preview = document.getElementById("balance-preview"), amount = parseGoldInput(el.value, false);
+      var before = totalAccountEarned(state.weekCarriedByAccount, state.entries, state.editingCarriedAccountId);
+      if (preview) preview.textContent = amount === null ? "0 이상의 보유액을 입력해주세요." : "기존 " + fmtGold(before) + " → " + fmtGold(amount) + " (" + (amount >= before ? "+" : "") + fmtGold(amount - before) + ")";
+    },
+    undoLedger: function () {
+      if (!ledgerUndo.length) return;
+      var previous = ledgerUndo.shift();
+      state.weekTarget = previous.target; state.weekCarry = previous.carry || 0;
+      state.weekCarriedEarned = previous.carriedEarned || 0; state.weekCarriedByAccount = previous.carriedByAccount || {};
+      state.entries = previous.entries || [];
+      saveCurrentWeek(true); ledgerNotice = "직전 장부 변경을 되돌렸습니다."; render();
+    },
     openBaseModal: function () {
       state.baseModalOpen = true;
       render();
@@ -1369,6 +1399,7 @@
         setTimeout(function () { state.justCompleted = false; render(); }, 1600);
       }
       if (amtEl) amtEl.value = "";
+      saleDraft = "";
       render();
       var focusEl = document.getElementById("entry-amount");
       if (focusEl) focusEl.focus();
@@ -1522,6 +1553,7 @@ var dashboardPortraits = [];
     }
     html += '<div class="ar-caption">판매액 차감 · 금액을 눌러 수정</div></div>';
     html += '<div class="ar-metric"><div class="ar-label">' + (remaining > 0 ? '목표까지 부족' : '목표 초과 보유') + '</div><div class="ar-number" style="color:' + (remaining > 0 ? 'var(--rust)' : 'var(--green)') + '">' + fmtWalletGold(Math.abs(remaining)) + '</div><div class="ar-caption">' + (remaining > 0 ? '현재 보유액 기준' : '목표 확보 완료') + '</div></div></section>';
+    html += '<div class="calc-notice" role="status">' + esc(ledgerNotice || '현재 보유액을 입력하면 차액이 기록됩니다. 판매 등록은 보유액과 목표에서 함께 차감됩니다.') + (ledgerUndo.length ? '<button class="calc-link" onclick="__gl.undoLedger()">장부 실행 취소 (' + ledgerUndo.length + ')</button>' : '') + '</div>';
     html += '<div class="ar-body"><section><div class="ar-sectionhead"><h2>계정별 보유 골드 <span class="ar-count">' + state.accounts.length + '</span></h2><span class="ar-hint">금액을 눌러 수정</span></div><div class="ar-accounts">';
     state.accounts.forEach(function (a, index) {
       var photo = dashboardPhotoIndex(a);
@@ -1529,7 +1561,7 @@ var dashboardPortraits = [];
       html += photo >= 0 && dashboardPortraits[photo] ? '<div class="ar-portrait"><img src="' + dashboardPortraits[photo] + '" alt="' + esc(a.name) + ' 대표 캐릭터"></div>' : '<div class="ar-portrait fallback" aria-hidden="true">' + esc(a.name.slice(0, 1)) + '</div>';
       html += '<div class="ar-profile"><div class="ar-name"><span class="ar-dot"></span>' + esc(a.name) + '</div>';
       if (state.editingCarriedAccountId === a.id) {
-        html += '<input id="carried-earned-input" class="ar-inline" aria-label="' + esc(a.name) + ' 현재 보유 골드 (만 단위)" value="' + (totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id) / 10000) + '" inputmode="decimal" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCarriedEarned()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCarriedEarned();}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelEditCarriedEarned();}" />';
+        html += '<input id="carried-earned-input" class="ar-inline" aria-label="' + esc(a.name) + ' 현재 보유 골드 (만 단위)" value="' + (totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id) / 10000) + '" inputmode="decimal" oninput="__gl.previewBalance(this)" onblur="__gl.commitCarriedEarned()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCarriedEarned();}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelEditCarriedEarned();}" /><div id="balance-preview" class="ar-formnote" role="status"></div>';
       } else {
         html += '<button type="button" class="ar-balance" aria-label="' + esc(a.name) + ' 보유액 수정" onclick="__gl.startEditCarriedEarned(' + index + ')">' + fmtWalletGold(totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id)) + '</button>';
       }
@@ -1538,9 +1570,9 @@ var dashboardPortraits = [];
     var assigned = state.accounts.reduce(function (sum, a) { return sum + totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id); }, 0);
     if (earned !== assigned) html += '<div class="ar-unassigned"><span>이월 조정 / 미배정</span><strong>' + fmtGold(earned - assigned) + '</strong></div>';
     html += '</div><div class="ar-ledgerfoot"><span>주 시작 이월</span><strong>' + fmtGold(state.weekCarriedEarned) + ' 골드</strong></div></section>';
-    html += '<aside class="ar-sale"><div class="ar-salehead"><h2>골드 판매 등록</h2></div><div class="ar-form"><label for="entry-account">판매 계정</label><select id="entry-account">';
-    state.accounts.forEach(function (a) { html += '<option value="' + esc(a.id) + '">' + esc(a.name) + '</option>'; });
-    html += '</select><label for="entry-amount">판매 금액</label><div class="ar-inputbox"><input id="entry-amount" aria-label="판매 골드 (만 단위)" placeholder="0" inputmode="decimal" onkeydown="__gl.keyEnter(event, __gl.addEntry)" /><span>만 골드</span></div><button type="button" class="ar-submit" onclick="__gl.addEntry()">판매 등록</button><p class="ar-formnote">선택 계정의 보유액과<br>이번 주 목표에서 함께 차감됩니다.</p></div><div class="ar-salesum"><span>이번 주 판매 합계</span><strong>' + fmtGold(totalSold(state.entries)) + ' 골드</strong></div></aside></div>';
+    html += '<aside class="ar-sale"><div class="ar-salehead"><h2>골드 판매 등록</h2></div><div class="ar-form"><label for="entry-account">판매 계정</label><select id="entry-account" onchange="__gl.updateSalePreview()">';
+    state.accounts.forEach(function (a) { html += '<option value="' + esc(a.id) + '"' + (saleAccount === a.id ? ' selected' : '') + '>' + esc(a.name) + '</option>'; });
+    html += '</select><label for="entry-amount">판매 금액</label><div class="ar-inputbox"><input id="entry-amount" aria-label="판매 골드 (만 단위)" placeholder="0" value="' + esc(saleDraft) + '" inputmode="decimal" oninput="__gl.updateSalePreview()" onkeydown="__gl.keyEnter(event, __gl.addEntry)" /><span>만 골드</span></div><p id="sale-preview" class="ar-formnote" role="status"></p><button type="button" class="ar-submit" onclick="__gl.addEntry()">판매 등록</button></div><div class="ar-salesum"><span>이번 주 판매 합계</span><strong>' + fmtGold(totalSold(state.entries)) + ' 골드</strong></div></aside></div>';
     return html;
   }
   function calcControl(id, field, value, label) {
@@ -1864,6 +1896,7 @@ var dashboardPortraits = [];
     html += '</div>';
 
     document.getElementById("app").innerHTML = html;
+    updateSalePreview();
     isRendering = false;
     if (renderQueued) {
       renderQueued = false;
@@ -1871,7 +1904,7 @@ var dashboardPortraits = [];
     }
   }
 
-  ["saveBase", "saveRate", "commitCardBill", "commitCash", "saveItemPriceApi", "saveSheetUrl", "commitCarriedEarned", "commitTarget", "commitRename", "addAccount", "deleteAccount", "addEntry", "deleteEntry", "commitEditEntry", "addItem", "deleteItem", "commitCalc", "undoCalc", "setPriceMode"].forEach(function (name) {
+  ["undoLedger", "saveBase", "saveRate", "commitCardBill", "commitCash", "saveItemPriceApi", "saveSheetUrl", "commitCarriedEarned", "commitTarget", "commitRename", "addAccount", "deleteAccount", "addEntry", "deleteEntry", "commitEditEntry", "addItem", "deleteItem", "commitCalc", "undoCalc", "setPriceMode"].forEach(function (name) {
     var action = window.__gl[name];
     window.__gl[name] = function () {
       var args = arguments;

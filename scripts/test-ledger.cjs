@@ -46,6 +46,26 @@ async function sale(p, amount) {
     assert.equal((await week(p)).entries.length, 3, 'one serialized write succeeds; stale concurrent write rejected');
     await p2.close();
     passes.push('cycle 1: stale-tab and simultaneous-tab writes do not lose history');
+    await seed(p);
+    await p.locator('#entry-account').selectOption('a2');
+    await p.locator('#entry-amount').fill('10');
+    assert.match(await p.locator('#sale-preview').textContent(), /보유 70만.*목표 140만/);
+    await p.evaluate(() => __gl.addEntry());
+    assert.equal(await p.locator('#entry-account').inputValue(), 'a2');
+    await p.reload(); await p.evaluate(() => __gl.undoLedger());
+    assert.equal((await week(p)).entries.length, 0);
+    assert.equal((await week(p)).target, 1500000);
+    await p.locator('.ar-balance').first().click();
+    await p.locator('#carried-earned-input').fill('45');
+    assert.match(await p.locator('#balance-preview').textContent(), /30만.*45만.*\+15만/);
+    await p.evaluate(() => __gl.commitCarriedEarned());
+    assert.equal((await week(p)).entries[0].amount, 150000);
+    await p.evaluate(() => __gl.undoLedger()); assert.equal((await week(p)).entries.length, 0);
+    for (let i = 0; i < 6; i++) await sale(p, 1);
+    assert.equal((await week(p)).undo.length, 5);
+    for (let i = 0; i < 5; i++) await p.evaluate(() => __gl.undoLedger());
+    assert.equal((await week(p)).entries.length, 1);
+    passes.push('cycle 2: sale/balance previews, selected account, persisted five-step undo');
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ passes, runtimeErrors: errors }, null, 2));
   } finally { await browser.close(); }
