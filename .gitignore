@@ -9,6 +9,8 @@
 !/scripts/
 !/scripts/check-release.cjs
 !/scripts/verify-live.cjs
+!/scripts/test-ledger.cjs
+!/REVIEW-CYCLES.md
 !/.github/
 !/.github/workflows/
 !/.github/workflows/pages.yml

@@ -513,6 +513,13 @@
     if (isNaN(val)) return 0;
     return Math.round(val * 10000);
   }
+  function parseGoldInput(text, signed) {
+    var value = String(text == null ? "" : text).trim().replace(/[０-９]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xfee0); });
+    var pattern = signed ? /^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,4})?$/ : /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,4})?$/;
+    if (!pattern.test(value)) return null;
+    var gold = Math.round(Number(value.replace(/,/g, "")) * 10000);
+    return Number.isSafeInteger(gold) ? gold : null;
+  }
   function manValueForInput(n) {
     var v = (n || 0) / 10000;
     var s = v.toFixed(2).replace(/\.?0+$/, "");
@@ -537,6 +544,39 @@
   }
 
   // ---------- localStorage ----------
+  var storageReady = false, storageSnapshot = "", storageNotice = "";
+  function storageFingerprint() {
+    return JSON.stringify(Object.keys(localStorage).filter(function (k) { return k.indexOf(STORAGE_PREFIX) === 0; }).sort().map(function (k) { return [k, localStorage.getItem(k)]; }));
+  }
+  function refreshAfterConflict(message) {
+    storageReady = false;
+    itemEdit = null; itemUndo = null;
+    state.editingCarriedAccountId = null; state.editingTarget = false; state.editingEntryId = null;
+    storageNotice = message;
+    init();
+  }
+  function withStorageLock(action) {
+    var run = function () {
+      if (storageReady && storageFingerprint() !== storageSnapshot) {
+        refreshAfterConflict("다른 탭에서 기록이 변경되어 최신 내용을 불러왔습니다. 이번 입력은 저장하지 않았습니다. 확인 후 다시 입력해주세요.");
+        return;
+      }
+      if (storageReady && fmtKey(computeWeekStart(new Date())) !== state.weekKey) {
+        refreshAfterConflict("새 주차가 시작되어 이월했습니다. 날짜와 보유액을 확인한 뒤 다시 입력해주세요.");
+        return;
+      }
+      try { return action(); } catch (error) {
+        refreshAfterConflict(error.message || "저장하지 못했습니다. 기존 기록을 다시 불러왔습니다.");
+      }
+    };
+    // Web Locks serializes read/check/write across tabs on HTTPS (including Pages).
+    // Fail closed on unsupported browsers rather than claim collision protection.
+    if (!navigator.locks) {
+      storageNotice = "안전한 저장을 지원하지 않는 브라우저입니다. 최신 Chrome/Edge에서 HTTPS 사이트를 열어주세요.";
+      render(); return Promise.resolve();
+    }
+    return navigator.locks.request("lostark-ledger-write", run);
+  }
   function lsGet(key) {
     try {
       var v = localStorage.getItem(STORAGE_PREFIX + key);
@@ -546,12 +586,13 @@
     }
   }
   function lsSet(key, val) {
+    if (storageReady && storageFingerprint() !== storageSnapshot) throw new Error("다른 탭의 변경을 발견했습니다. 최신 기록을 확인 후 다시 입력해주세요.");
     try {
       localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
+      if (storageReady) storageSnapshot = storageFingerprint();
       return true;
     } catch (e) {
-      state.error = "저장에 실패했습니다. 브라우저 저장 공간을 확인해주세요.";
-      return false;
+      throw new Error("저장 공간이 부족하거나 저장이 차단됐습니다. 변경은 저장되지 않았습니다.");
     }
   }
 
@@ -777,26 +818,30 @@
     state.itemPriceUpdating = true;
     state.itemPriceError = "";
     render();
-    var success = 0, failed = 0;
-    await Promise.all(targets.map(async function (target) {
+    var results = await Promise.all(targets.map(async function (target) {
       try {
         var value = target.id === "i1" ? await fetchMarketUnitPrice("상급 아비도스 융화 재료") : await fetchGemUnitPrice();
         if (!(value > 0) || !Number.isFinite(value)) throw new Error("가격 응답을 확인해주세요");
-        var current = state.items.find(function (it) { return it.id === target.id; });
-        if (current && autoItem(current) && !(itemEdit && itemEdit.id === current.id && itemEdit.field === "price")) {
-          current.price = value; current.priceUpdatedAt = Date.now(); current.priceError = ""; success++;
-        }
+        return { id: target.id, value: value };
       } catch (error) {
-        var current = state.items.find(function (it) { return it.id === target.id; });
-        if (current && autoItem(current)) { current.priceError = "이전 가격 사용 중 · " + error.message; failed++; }
+        return { id: target.id, error: error.message };
       }
     }));
     state.itemPriceUpdating = false;
+    await withStorageLock(function () {
+    var success = 0, failed = 0;
+    results.forEach(function (result) {
+      var current = state.items.find(function (it) { return it.id === result.id; });
+      if (!current || !autoItem(current) || (itemEdit && itemEdit.id === current.id && itemEdit.field === "price")) return;
+      if (result.error) { current.priceError = "이전 가격 사용 중 · " + result.error; failed++; }
+      else { current.price = result.value; current.priceUpdatedAt = Date.now(); current.priceError = ""; success++; }
+    });
     state.itemPriceLastUpdated = Date.now();
     state.itemPriceError = failed ? (success ? "일부 갱신 실패" : "가격 갱신 실패") : "";
     itemNotice = failed ? state.itemPriceError + " · 아이템별 상태를 확인해주세요." : (success ? success + "개 아이템 가격 갱신 완료" : "편집 중이거나 직접 입력으로 전환한 가격은 유지했습니다.");
     saveItems(); saveSettings();
     if (!itemEdit) render();
+    });
   }
   function formatPriceUpdatedAt(ts) {
     if (!ts) return "아직 가격 갱신 기록 없음";
@@ -889,6 +934,7 @@
     ensureCurrentWeek();
     loadHistory();
     state.items = loadItems();
+    storageSnapshot = storageFingerprint(); storageReady = true;
     render();
   }
   function saveSettings(skipSheetSync) {
@@ -1298,10 +1344,12 @@
         render();
         return;
       }
-      var amount = parseManInput(amtEl ? amtEl.value : "");
-      if (!amount) {
-        state.error = "골드 금액을 만 단위 숫자로 입력해주세요. (예: 2.5)";
-        render();
+      var amount = parseGoldInput(amtEl ? amtEl.value : "", false);
+      var accountId = accEl ? accEl.value : state.accounts[0].id;
+      var available = totalAccountEarned(state.weekCarriedByAccount, state.entries, accountId);
+      if (amount === null || amount <= 0 || amount > available) {
+        var message = amount === null || amount <= 0 ? "0보다 큰 숫자를 만 단위로 입력해주세요. 음수·문자·소수점 5자리 이상은 사용할 수 없습니다." : "선택 계정의 보유액 " + fmtGold(available) + "을 초과해 판매할 수 없습니다.";
+        if (amtEl) { amtEl.setCustomValidity(message); amtEl.reportValidity(); }
         return;
       }
       var entry = {
@@ -1339,9 +1387,14 @@
     },
     commitEditEntry: function (id) {
       var el = document.getElementById("entry-edit-input");
-      var amount = parseManInput(el ? el.value : "");
       var existing = state.entries.find(function (e) { return e.id === id; });
-      if (existing && existing.balanceUpdate && el && /^\s*-/.test(el.value)) amount = -amount;
+      var amount = parseGoldInput(el ? el.value : "", !!(existing && existing.balanceUpdate));
+      if (!existing) return;
+      var balance = totalAccountEarned(state.weekCarriedByAccount, state.entries, existing.accountId);
+      if (amount === null || (existing.type === "sell" && (amount <= 0 || amount > balance + existing.amount))) {
+        if (el) { el.setCustomValidity("올바른 금액을 입력해주세요. 판매는 0보다 크고 판매 전 보유액 이하여야 합니다."); el.reportValidity(); }
+        return;
+      }
       state.editingEntryId = null;
       if (amount) {
         state.entries = state.entries.map(function (e) {
@@ -1566,7 +1619,8 @@ var dashboardPortraits = [];
       '<div class="view-tab' + (state.view === "items" ? " active" : "") + '" onclick="__gl.setView(\'items\')">아이템 계산기</div>' +
       '</div>';
 
-    if (state.error) html += '<div class="error-bar">' + esc(state.error) + '</div>';
+    if (storageNotice) html += '<div class="error-bar" role="status">' + esc(storageNotice) + '</div>';
+    if (state.error) html += '<div class="error-bar" role="alert">' + esc(state.error) + '</div>';
     if (state.syncMsg) html += '<div class="sync-msg">' + esc(state.syncMsg) + '</div>';
 
     if (state.dataModalOpen) {
@@ -1817,6 +1871,20 @@ var dashboardPortraits = [];
     }
   }
 
+  ["saveBase", "saveRate", "commitCardBill", "commitCash", "saveItemPriceApi", "saveSheetUrl", "commitCarriedEarned", "commitTarget", "commitRename", "addAccount", "deleteAccount", "addEntry", "deleteEntry", "commitEditEntry", "addItem", "deleteItem", "commitCalc", "undoCalc", "setPriceMode"].forEach(function (name) {
+    var action = window.__gl[name];
+    window.__gl[name] = function () {
+      var args = arguments;
+      return withStorageLock(function () { storageNotice = ""; return action.apply(window.__gl, args); });
+    };
+  });
+  window.addEventListener("storage", function (event) {
+    if (event.key === null || event.key.indexOf(STORAGE_PREFIX) === 0) {
+      var banner = document.getElementById("storage-warning");
+      if (!banner) { banner = document.createElement("div"); banner.id = "storage-warning"; banner.className = "error-bar"; banner.setAttribute("role", "status"); document.getElementById("app").prepend(banner); }
+      banner.textContent = "다른 탭에서 변경되었습니다. 다음 저장 시 최신 내용을 확인하며, 오래된 입력으로 덮어쓰지 않습니다.";
+    }
+  });
   init();
   setTimeout(function () { updateItemPrices(false); }, 700);
   setInterval(function () { updateItemPrices(false); }, 60 * 1000);
