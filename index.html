@@ -443,6 +443,12 @@
   .calc-needed-row{display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid var(--border);padding:14px 0;font-size:14px}
   .calc-needed-row small{display:block;font-size:12px;color:#98a5b8;margin-top:5px}
   .calc-needed-row strong{color:var(--gold);white-space:nowrap;font-size:16px;font-weight:600}
+  .calc-plan{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}
+  .calc-plan summary{font-size:14px;cursor:pointer;padding:10px 0}
+  .calc-plan p{color:var(--text-muted);font-size:12px;line-height:1.7}
+  .calc-plan label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;font-size:13px}
+  .calc-plan input{width:110px;max-width:40%;min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:right;font:inherit}
+  .calc-plan output{display:block;padding:14px;background:var(--panel);border-radius:6px;color:var(--gold);line-height:1.7;font-size:14px}
   @media(max-width:900px){.calc-columns,.calc-row{grid-template-columns:minmax(140px,1fr) 110px 100px 120px 32px;gap:8px}.calc-totals{gap:20px}.calc-totals>div+div{padding-left:20px}.calc-totals strong{font-size:26px}}
   @media(max-width:700px){.dashboard-theme .calc-panel{padding:16px}.calc-summary{padding:18px}.calc-columns{display:none}.calc-row{grid-template-columns:1fr 1fr 36px;gap:14px}.calc-name{grid-column:1/3}.calc-delete{grid-column:3;grid-row:1}.calc-row .calc-cell{grid-row:2;text-align:left}.calc-row .calc-subtotal{grid-row:3;grid-column:1/4;display:flex;justify-content:space-between}.calc-cell:before{content:attr(data-label);display:block;font-size:12px;color:#aab5c5;margin-bottom:5px}.calc-row{position:relative}.calc-row .calc-delete{grid-row:1;align-self:start}.calc-totals{flex-direction:column;gap:12px}.calc-totals>div+div{border:0;padding:0}.calc-goal{gap:10px}.calc-goal>strong{margin-left:0;width:100%}.calc-needed{padding:16px}.calc-needed-row{align-items:flex-start;flex-wrap:wrap;gap:8px}.calc-needed-row strong{margin-left:auto}.calc-toolbar{margin-top:22px}.calc-notice{flex-wrap:wrap}}
 
@@ -616,6 +622,7 @@
     filterAccount: "all",
     entryType: "sell",
     exchangeRate: DEFAULT_RATE,
+    saleFeePercent: 0,
     rateModalOpen: false,
     cardBill: 0,
     editingCardBill: false,
@@ -740,6 +747,7 @@
   function fmtItemGold(n) { return Math.round(n || 0).toLocaleString("ko-KR") + "G"; }
   function fmtItemWon(n) { return Math.round(n || 0).toLocaleString("ko-KR") + "원"; }
   function goldToWon(gold) { return ((gold || 0) / 10000) * (state.exchangeRate || DEFAULT_RATE); }
+  function netItemWon(gold) { return goldToWon(gold) * (1 - state.saleFeePercent / 100); }
   function itemsGrandTotal(overrideId, overrideQty) {
     return state.items.reduce(function (s, it) {
       var q = it.id === overrideId ? overrideQty : (it.qty || 0);
@@ -747,13 +755,13 @@
     }, 0);
   }
   function itemsRemainingWon() {
-    return Math.max(0, (state.itemTarget || 0) - goldToWon(itemsGrandTotal(null, 0)));
+    return Math.max(0, (state.itemTarget || 0) - netItemWon(itemsGrandTotal(null, 0)));
   }
   function itemNeededQty(price) {
     var remainingWon = itemsRemainingWon();
     if (remainingWon <= 0) return 0;
     if (!(price > 0) || !(state.exchangeRate > 0)) return null;
-    var itemWonValue = goldToWon(price);
+    var itemWonValue = netItemWon(price);
     return itemWonValue > 0 ? Math.ceil(remainingWon / itemWonValue) : null;
   }
 
@@ -801,7 +809,25 @@
     if (!prices.length) throw new Error("8레벨 보석 매물이 없습니다");
     return Math.min.apply(Math, prices);
   }
-  var itemEdit = null, itemUndo = null, itemNotice = "", neededOpen = true;
+  var itemEdit = null, itemUndo = null, itemNotice = "", neededOpen = true, planOpen = false, planDraft = {};
+  function updatePlan() {
+    var output = document.getElementById("plan-result");
+    if (!output) return;
+    var extraGold = 0, valid = true, missing = false;
+    document.querySelectorAll(".plan-qty").forEach(function (input) {
+      var text = input.value.trim(); planDraft[input.dataset.id] = text;
+      var qty = text === "" ? 0 : Number(text);
+      var it = state.items.find(function (row) { return row.id === input.dataset.id; });
+      if (!/^\d*$/.test(text) || !Number.isSafeInteger(qty) || !it || !Number.isSafeInteger(qty * it.price)) { valid = false; return; }
+      if (qty > 0 && !(it.price > 0)) missing = true;
+      extraGold += qty * it.price;
+    });
+    if (!valid || !Number.isSafeInteger(extraGold + itemsGrandTotal(null, 0))) { output.textContent = "추가 수량은 계산 가능한 범위의 0 이상 정수로 입력해주세요."; return; }
+    if (missing) { output.textContent = "계획에 포함한 아이템의 가격을 먼저 입력해주세요."; return; }
+    if (!(state.itemTarget > 0)) { output.textContent = "목표 금액을 먼저 설정해주세요."; return; }
+    var remaining = Math.max(0, state.itemTarget - netItemWon(itemsGrandTotal(null, 0) + extraGold));
+    output.textContent = "추가 예상 가치 " + fmtItemWon(netItemWon(extraGold)) + " · " + (remaining > 0 ? "계획 후 " + fmtItemWon(remaining) + " 부족" : "이 계획이면 목표 가치 확보") + " (수수료 " + state.saleFeePercent + "% 적용)";
+  }
   function autoItem(it) { return (it.id === "i1" || it.id === "i2") && it.priceMode === "auto"; }
   async function updateItemPrices(force) {
     if (state.itemPriceUpdating || itemEdit) return;
@@ -939,6 +965,7 @@
     state.baseTarget = settings.baseTarget || DEFAULT_TARGET;
     state.itemTarget = settings.itemTarget || 0;
     state.exchangeRate = settings.exchangeRate || DEFAULT_RATE;
+    state.saleFeePercent = Number.isFinite(settings.saleFeePercent) && settings.saleFeePercent >= 0 && settings.saleFeePercent < 100 ? settings.saleFeePercent : 0;
     state.cardBill = settings.cardBill || 0;
     state.cashOnHand = settings.cashOnHand || 0;
     state.sheetUrl = settings.sheetUrl || "";
@@ -953,7 +980,7 @@
     render();
   }
   function saveSettings(skipSheetSync) {
-    lsSet("settings", { baseTarget: state.baseTarget, itemTarget: state.itemTarget, exchangeRate: state.exchangeRate, cardBill: state.cardBill, cashOnHand: state.cashOnHand, sheetUrl: state.sheetUrl, lastSheetSyncAt: state.lastSheetSyncAt, itemPriceApiKey: state.itemPriceApiKey, itemPriceUpdateInterval: state.itemPriceUpdateInterval, itemPriceLastUpdated: state.itemPriceLastUpdated });
+    lsSet("settings", { baseTarget: state.baseTarget, itemTarget: state.itemTarget, exchangeRate: state.exchangeRate, saleFeePercent: state.saleFeePercent, cardBill: state.cardBill, cashOnHand: state.cashOnHand, sheetUrl: state.sheetUrl, lastSheetSyncAt: state.lastSheetSyncAt, itemPriceApiKey: state.itemPriceApiKey, itemPriceUpdateInterval: state.itemPriceUpdateInterval, itemPriceLastUpdated: state.itemPriceLastUpdated });
     if (!skipSheetSync) scheduleSheetSync();
   }
 
@@ -983,6 +1010,7 @@
       baseTarget: state.baseTarget,
       itemTarget: state.itemTarget,
       exchangeRate: state.exchangeRate,
+      saleFeePercent: state.saleFeePercent,
       cardBill: state.cardBill,
       cashOnHand: state.cashOnHand,
       sheetUrl: state.sheetUrl,
@@ -1142,6 +1170,8 @@
 
   // ---------- 액션 ----------
   window.__gl = {
+    updatePlan: updatePlan,
+    togglePlan: function (open) { planOpen = open; },
     updateSalePreview: updateSalePreview,
     previewBalance: function (el) {
       el.setCustomValidity("");
@@ -1513,6 +1543,9 @@
       if (edit.field === "name") {
         if (!text) { input.setCustomValidity("아이템 이름을 입력해주세요."); input.reportValidity(); return; }
         value = text.slice(0, 100);
+      } else if (edit.field === "fee") {
+        value = Number(text);
+        if (!/^\d+(?:\.\d{1,2})?$/.test(text) || !Number.isFinite(value) || value < 0 || value >= 100) { input.setCustomValidity("수수료는 0 이상 100 미만, 소수점 두 자리까지 입력해주세요."); input.reportValidity(); return; }
       } else {
         if (!/^(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)$/.test(text)) {
           input.setCustomValidity("0 이상의 정수를 입력해주세요. 소수와 음수는 사용할 수 없습니다."); input.reportValidity(); return;
@@ -1522,9 +1555,10 @@
           input.setCustomValidity("입력 가능한 범위를 초과했습니다."); input.reportValidity(); return;
         }
       }
-      if (edit.field === "target") {
-        itemUndo = { type: "target", value: state.itemTarget };
-        state.itemTarget = value; saveSettings();
+      if (edit.field === "target" || edit.field === "fee") {
+        var setting = edit.field === "fee" ? "saleFeePercent" : "itemTarget";
+        itemUndo = { type: edit.field, value: state[setting] };
+        state[setting] = value; saveSettings();
       } else {
         var it = state.items.find(function (it) { return it.id === edit.id; });
         if (!it) { itemEdit = null; render(); return; }
@@ -1547,6 +1581,7 @@
       if (!itemUndo) return;
       var u = itemUndo; itemUndo = null;
       if (u.type === "target") { state.itemTarget = u.value; saveSettings(); }
+      else if (u.type === "fee") { state.saleFeePercent = u.value; saveSettings(); }
       else {
         if (u.type === "delete") state.items.splice(u.index, 0, u.item);
         else {
@@ -1626,16 +1661,17 @@ var dashboardPortraits = [];
   }
   function calcControl(id, field, value, label) {
     var editing = itemEdit && itemEdit.id === id && itemEdit.field === field;
-    if (editing) return '<input id="calc-editor" class="calc-edit" aria-label="' + esc(label) + '" value="' + esc(field === "name" ? value : fmtNum(value)) + '" inputmode="' + (field === "name" ? "text" : "numeric") + '" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCalc(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCalc(this);}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelCalc();}" />';
-    return '<button type="button" class="calc-value" data-id="' + esc(id) + '" data-field="' + field + '" aria-label="' + esc(label + " 수정") + '" onclick="__gl.editCalc(this.dataset.id,this.dataset.field)">' + esc(field === "name" ? value : fmtNum(value)) + '<span class="calc-pencil" aria-hidden="true">✎</span></button>';
+    var display = field === "name" || field === "fee" ? value : fmtNum(value);
+    if (editing) return '<input id="calc-editor" class="calc-edit" aria-label="' + esc(label) + '" value="' + esc(display) + '" inputmode="' + (field === "name" ? "text" : field === "fee" ? "decimal" : "numeric") + '" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCalc(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCalc(this);}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelCalc();}" />';
+    return '<button type="button" class="calc-value" data-id="' + esc(id) + '" data-field="' + field + '" aria-label="' + esc(label + " 수정") + '" onclick="__gl.editCalc(this.dataset.id,this.dataset.field)">' + esc(display) + '<span class="calc-pencil" aria-hidden="true">✎</span></button>';
   }
   function renderCalculator() {
-    var total = itemsGrandTotal(null, 0), won = goldToWon(total), target = state.itemTarget || 0;
+    var total = itemsGrandTotal(null, 0), won = netItemWon(total), target = state.itemTarget || 0;
     var remaining = Math.max(0, target - won), percentage = target > 0 ? won / target * 100 : 0;
     var complete = target > 0 && remaining === 0;
     var html = '<div class="ar-heading"><h2 style="font-size:21px;margin:0">아이템 계산기</h2><span class="ar-hint">보유 수량으로 확인하는 예상 판매 가치</span></div><section class="card-panel calc-panel">';
     html += '<div class="calc-summary"><div class="calc-overline">보유 아이템 · 예상 판매 가치</div><div class="calc-totals"><div><span>현금 환산</span><strong id="calc-cash">' + fmtItemWon(won) + '</strong></div><div><span>골드 기준</span><strong id="calc-gold">' + fmtItemGold(total) + '</strong></div></div>';
-    html += '<div class="calc-assumption"><button class="calc-link" onclick="__gl.openRateModal()">1만 골드 = ' + fmtNum(state.exchangeRate) + '원 · 환율 수정</button><span>수수료 차감 전 · 실제 판매 수익과 다를 수 있음</span></div>';
+    html += '<div class="calc-assumption"><button class="calc-link" onclick="__gl.openRateModal()">1만 골드 = ' + fmtNum(state.exchangeRate) + '원 · 환율 수정</button><span>수수료 추정 ' + calcControl("", "fee", state.saleFeePercent, "수수료 비율 (%)") + '%</span><span>' + (state.saleFeePercent > 0 ? '현금 환산·목표에 차감 반영 · 차감 전 ' + fmtItemWon(goldToWon(total)) : '수수료 차감 전') + ' · 골드 총액은 차감 전</span></div><p class="ar-formnote">수수료는 직접 설정하는 일괄 추정치입니다. 거래별 반올림·최소 수수료는 반영하지 않으며 실제 수익과 다를 수 있습니다.</p>';
     html += '<div class="calc-goal"><span>목표 ' + calcControl("", "target", target, "목표 금액 (원)") + '원</span><span>' + (target > 0 ? '목표 대비 예상 가치 <b>' + percentage.toFixed(1) + '%</b>' : '목표 금액을 설정해주세요') + '</span><strong class="' + (complete ? 'calc-success' : '') + '">' + (target > 0 ? (complete ? '목표 가치 확보' : '목표까지 ' + fmtItemWon(remaining) + ' 부족') : '') + '</strong></div>';
     html += '<div class="calc-track" role="progressbar" aria-label="목표 대비 예상 가치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.min(100, percentage) + '"><div style="width:' + Math.min(100, percentage) + '%"></div></div></div>';
     html += '<div class="calc-toolbar"><div><h3>보유 아이템 <span>' + state.items.length + '</span></h3><p>' + (state.itemPriceUpdating ? '가격 갱신 중…' : esc(formatPriceUpdatedAt(state.itemPriceLastUpdated))) + '</p></div><button class="data-btn" onclick="__gl.refreshItemPrices()" ' + (state.itemPriceUpdating ? 'disabled' : '') + '>지금 갱신</button></div>';
@@ -1656,7 +1692,11 @@ var dashboardPortraits = [];
       var qty = itemNeededQty(it.price || 0);
       html += '<div class="calc-needed-row"><span>' + esc(it.name) + '<small>이 아이템만 추가 확보하면</small></span><strong>' + (target <= 0 ? '목표 설정 필요' : qty === null ? '가격 입력 필요' : qty === 0 ? '추가 확보 불필요' : '+' + fmtNum(qty) + '개') + '</strong></div>';
     });
-    return html + '</details></section>';
+    html += '</details><details class="calc-plan" ' + (planOpen ? 'open' : '') + ' ontoggle="__gl.togglePlan(this.open)"><summary>여러 아이템을 섞어서 목표 계산</summary><p>현재 보유 아이템을 모두 판매하고 아래 수량을 추가 확보하는 가정입니다. 시뮬레이션이며 보유 수량·판매 내역에는 저장하지 않습니다.</p>';
+    state.items.forEach(function (it) {
+      html += '<label><span>' + esc(it.name) + ' 추가 수량</span><input class="plan-qty" data-id="' + esc(it.id) + '" aria-label="' + esc(it.name) + ' 계획 추가 수량" value="' + esc(planDraft[it.id] || '') + '" placeholder="0" inputmode="numeric" oninput="__gl.updatePlan()"></label>';
+    });
+    return html + '<output id="plan-result" aria-live="polite"></output></details></section>';
   }
 
   function render() {
@@ -1948,6 +1988,7 @@ var dashboardPortraits = [];
 
     document.getElementById("app").innerHTML = html;
     updateSalePreview();
+    updatePlan();
     isRendering = false;
     if (renderQueued) {
       renderQueued = false;
