@@ -993,6 +993,56 @@
     out.settings = settingsBackup;
     return out;
   }
+  function validatedBackup(obj) {
+    var plain = function (v) { return v && typeof v === "object" && !Array.isArray(v); };
+    var number = function (v, negative) { return Number.isSafeInteger(v) && (negative || v >= 0); };
+    var id = function (v) { return typeof v === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(v); };
+    var fail = function () { throw new Error("백업의 계정·금액·기록 형식을 확인해주세요. 기존 데이터는 변경하지 않았습니다."); };
+    if (!plain(obj) || !Array.isArray(obj.accounts) || !obj.accounts.length || obj.accounts.length > 100 || !Array.isArray(obj.items) || !plain(obj.settings)) fail();
+    if (!obj.accounts.every(function (a) { return plain(a) && id(a.id) && typeof a.name === "string" && a.name.length > 0 && a.name.length <= 200; }) || new Set(obj.accounts.map(function (a) { return a.id; })).size !== obj.accounts.length) fail();
+    if (obj.items.length > 1000 || !obj.items.every(function (it) { return plain(it) && id(it.id) && typeof it.name === "string" && it.name.length <= 200 && number(it.price, false) && number(it.qty, false) && Number.isSafeInteger(it.price * it.qty); }) || new Set(obj.items.map(function (it) { return it.id; })).size !== obj.items.length) fail();
+    var out = { accounts: obj.accounts, items: obj.items }, weeks = 0, entries = 0;
+    function validWeek(w) {
+      if (!plain(w) || !number(w.target, false) || !Array.isArray(w.entries) || w.entries.length > 100000) return false;
+      if (w.carriedEarned != null && !number(w.carriedEarned, true)) return false;
+      if (w.carriedByAccount != null && (!plain(w.carriedByAccount) || !Object.keys(w.carriedByAccount).every(function (key) { return id(key) && number(w.carriedByAccount[key], true); }))) return false;
+      return w.entries.every(function (e) { return plain(e) && id(e.id) && id(e.accountId) && (e.type === "sell" || e.type === "earn") && number(e.amount, e.type === "earn") && typeof e.date === "string" && Number.isFinite(Date.parse(e.date)); });
+    }
+    Object.keys(obj).forEach(function (key) {
+      if (key.indexOf("week_") !== 0) return;
+      if (!/^week_\d{4}-\d{2}-\d{2}$/.test(key) || !Number.isFinite(Date.parse(key.slice(5))) || !validWeek(obj[key])) fail();
+      var w = Object.assign({}, obj[key]);
+      if (w.undo && (!Array.isArray(w.undo) || w.undo.length > 5 || !w.undo.every(validWeek))) fail();
+      out[key] = w; weeks++; entries += w.entries.length;
+    });
+    out.settings = Object.assign({}, lsGet("settings") || {});
+    ["baseTarget", "itemTarget", "exchangeRate", "cardBill", "cashOnHand", "itemPriceUpdateInterval", "itemPriceLastUpdated", "saleFeePercent"].forEach(function (key) {
+      if (obj.settings[key] == null) return;
+      if (key === "saleFeePercent" ? !(Number.isFinite(obj.settings[key]) && obj.settings[key] >= 0 && obj.settings[key] < 100) : !number(obj.settings[key], false)) fail();
+      if (key === "exchangeRate" && obj.settings[key] <= 0) fail();
+      out.settings[key] = obj.settings[key];
+    });
+    // Connections belong to this browser; imported files cannot turn on an external sync.
+    if (obj.portraitImages !== undefined) {
+      if (!Array.isArray(obj.portraitImages) || obj.portraitImages.length > 20 || !obj.portraitImages.every(validPortrait)) fail();
+      if (!plain(obj.portraitBindings) || !Object.keys(obj.portraitBindings).every(function (key) { return id(key) && Number.isInteger(obj.portraitBindings[key]) && obj.portraitBindings[key] >= 0 && obj.portraitBindings[key] < obj.portraitImages.length; })) fail();
+      out.portraitImages = obj.portraitImages; out.portraitBindings = obj.portraitBindings;
+    }
+    return { data: out, weeks: weeks, entries: entries };
+  }
+  function writeBatch(data) {
+    var previous = {};
+    Object.keys(data).forEach(function (key) { previous[key] = localStorage.getItem(STORAGE_PREFIX + key); });
+    try { Object.keys(data).forEach(function (key) { lsSet(key, data[key]); }); }
+    catch (error) {
+      Object.keys(previous).forEach(function (key) {
+        if (previous[key] === null) localStorage.removeItem(STORAGE_PREFIX + key);
+        else localStorage.setItem(STORAGE_PREFIX + key, previous[key]);
+      });
+      storageSnapshot = storageFingerprint();
+      throw new Error("저장에 실패해 가져오기를 취소하고 기존 데이터를 복구했습니다. 저장 공간을 확인해주세요.");
+    }
+  }
   function csvCell(v) {
     var s = String(v);
     if (s.indexOf(",") >= 0 || s.indexOf('"') >= 0 || s.indexOf("\n") >= 0) {
@@ -1116,10 +1166,13 @@
     closeBaseModal: function () { state.baseModalOpen = false; render(); },
     saveBase: function () {
       var el = document.getElementById("base-input");
-      var v = parseManInput(el ? el.value : "");
-      state.baseTarget = v || DEFAULT_TARGET;
+      var v = parseGoldInput(el ? el.value : "", false);
+      if (v === null) { el.setCustomValidity("0 이상의 목표를 만 단위로 입력해주세요."); el.reportValidity(); return; }
+      var firstGoal = state.weekTarget === 0 && totalSold(state.entries) === 0;
+      state.baseTarget = v;
       state.baseModalOpen = false;
       saveSettings();
+      if (firstGoal) { state.weekTarget = v; saveCurrentWeek(); }
       render();
     },
     openRateModal: function () {
@@ -1170,6 +1223,7 @@
     exportJSON: function () {
       var data = exportAllData();
       downloadFile("lostark-gold-backup-" + fmtKey(new Date()) + ".json", JSON.stringify(data, null, 2), "application/json");
+      lsSet("backupRequestedAt", Date.now()); render();
     },
     exportCSV: function () {
       downloadFile("lostark-gold-history-" + fmtKey(new Date()) + ".csv", "\uFEFF" + buildHistoryCSV(), "text/csv;charset=utf-8");
@@ -1189,6 +1243,7 @@
       var reader = new FileReader();
       reader.onerror = function () { alert("파일을 읽을 수 없습니다."); };
       reader.onload = function () {
+        withStorageLock(function () {
         try {
           var pack = JSON.parse(reader.result);
           if (!Array.isArray(pack.portraitImages) || pack.portraitImages.length > 20 || !pack.portraitImages.length || !pack.portraitImages.every(validPortrait)) throw new Error("사진 파일 형식을 확인해주세요.");
@@ -1203,45 +1258,37 @@
           var matched = Object.keys(bindings).length;
           if (!matched) throw new Error("일치하는 계정이 없습니다. 기존 장부 JSON을 먼저 가져오고 계정 이름을 확인해주세요.");
           if (!confirm(matched + "개 계정의 사진을 복원합니다. 골드 기록과 설정은 변경하지 않습니다. 계속할까요?")) return;
-          var oldImages = localStorage.getItem(STORAGE_PREFIX + "portraitImages");
-          var oldBindings = localStorage.getItem(STORAGE_PREFIX + "portraitBindings");
-          try {
-            localStorage.setItem(STORAGE_PREFIX + "portraitImages", JSON.stringify(pack.portraitImages));
-            localStorage.setItem(STORAGE_PREFIX + "portraitBindings", JSON.stringify(bindings));
-          } catch (storageError) {
-            if (oldImages === null) localStorage.removeItem(STORAGE_PREFIX + "portraitImages");
-            else localStorage.setItem(STORAGE_PREFIX + "portraitImages", oldImages);
-            if (oldBindings === null) localStorage.removeItem(STORAGE_PREFIX + "portraitBindings");
-            else localStorage.setItem(STORAGE_PREFIX + "portraitBindings", oldBindings);
-            throw new Error("사진 저장 공간이 부족합니다. 기존 사진은 유지됩니다.");
-          }
+          writeBatch({ portraitImages: pack.portraitImages, portraitBindings: bindings });
           dashboardPortraits = pack.portraitImages;
           dashboardPhotoIds = bindings;
           render();
           alert(matched + "개 계정의 사진을 복원했습니다. 이제 JSON 내보내기에 사진도 포함됩니다.");
         } catch (error) { alert(error.message || "사진 복원 파일을 확인해주세요."); }
+        });
       };
       reader.readAsText(file);
     },
     handleImportFile: function (evt) {
       var file = evt.target.files && evt.target.files[0];
       if (!file) return;
+      evt.target.value = "";
+      if (file.size > 20000000) { state.error = "백업 파일은 20MB 이하여야 합니다."; render(); return; }
       var reader = new FileReader();
+      reader.onerror = function () { state.error = "백업 파일을 읽지 못했습니다. 기존 기록은 유지됩니다."; render(); };
       reader.onload = function () {
+        withStorageLock(function () {
         try {
-          var obj = JSON.parse(reader.result);
-          if (!confirm("백업 파일을 불러오면 현재 브라우저에 저장된 기록을 덮어씁니다. 계속할까요?")) return;
-          Object.keys(obj).forEach(function (k) {
-            try { localStorage.setItem(STORAGE_PREFIX + k, JSON.stringify(obj[k])); } catch (e) {}
-          });
+          var pack = validatedBackup(JSON.parse(reader.result));
+          if (!confirm("가져오기 미리보기\n계정 " + pack.data.accounts.length + "개 · 아이템 " + pack.data.items.length + "개\n" + pack.weeks + "주차 · 내역 " + pack.entries + "건\n계정·아이템·설정 및 겹치는 주차를 덮어씁니다. 파일에 없는 주차와 사진은 유지됩니다.\nAPI 키·시트 연결은 이 브라우저의 설정을 유지합니다. 새 기기에서는 다시 연결해주세요.\n먼저 현재 기록을 백업하는 것을 권장합니다. 계속할까요?")) return;
+          writeBatch(pack.data);
           location.reload();
         } catch (e) {
-          state.error = "백업 파일을 읽을 수 없어요. 올바른 JSON 파일인지 확인해주세요.";
+          state.error = e instanceof SyntaxError ? "올바른 JSON 백업 파일인지 확인해주세요. 기존 기록은 유지됩니다." : e.message;
           render();
         }
+        });
       };
       reader.readAsText(file);
-      evt.target.value = "";
     },
     saveItemPriceApi: function () {
       var keyEl = document.getElementById("item-price-api-key");
@@ -1544,6 +1591,8 @@ var dashboardPortraits = [];
   }
   function renderDashboard(earned, target, remaining) {
     var html = '<div class="ar-heading"><h2 style="font-size:21px;margin:0">주간 골드 현황</h2><div class="ar-period">' + fmtShort(state.weekStart) + ' ~ ' + fmtShort(state.weekEnd) + '</div></div>';
+    var goalUnset = !(state.weekTarget > 0);
+    if (goalUnset) html += '<div class="calc-notice"><span>처음이라면 기본 목표를 설정하고, 계정별 현재 보유액을 입력하세요. 계정 이름은 계정 관리에서 바꿀 수 있습니다.</span><button class="calc-link" onclick="__gl.openBaseModal()">기본 목표 설정</button></div>';
     html += '<section class="ar-summary" aria-label="주간 요약"><div class="ar-metric"><div class="ar-label">현재 보유 골드</div><div class="ar-number" data-dashboard-total>' + fmtWalletGold(earned) + '</div><div class="ar-caption">' + state.accounts.length + '개 계정 합산</div></div>';
     html += '<div class="ar-metric"><div class="ar-label">판매 반영 목표</div>';
     if (state.editingTarget) {
@@ -1552,7 +1601,7 @@ var dashboardPortraits = [];
       html += '<button type="button" class="ar-target" title="클릭해서 목표 수정" onclick="__gl.startEditTarget()">' + fmtWalletGold(target) + '</button>';
     }
     html += '<div class="ar-caption">판매액 차감 · 금액을 눌러 수정</div></div>';
-    html += '<div class="ar-metric"><div class="ar-label">' + (remaining > 0 ? '목표까지 부족' : '목표 초과 보유') + '</div><div class="ar-number" style="color:' + (remaining > 0 ? 'var(--rust)' : 'var(--green)') + '">' + fmtWalletGold(Math.abs(remaining)) + '</div><div class="ar-caption">' + (remaining > 0 ? '현재 보유액 기준' : '목표 확보 완료') + '</div></div></section>';
+    html += '<div class="ar-metric"><div class="ar-label">' + (goalUnset ? '목표 설정 필요' : remaining > 0 ? '목표까지 부족' : '목표 초과 보유') + '</div><div class="ar-number" style="color:' + (remaining > 0 ? 'var(--rust)' : 'var(--green)') + '">' + (goalUnset ? '—' : fmtWalletGold(Math.abs(remaining))) + '</div><div class="ar-caption">' + (goalUnset ? '목표를 설정하면 달성 여부를 표시합니다' : remaining > 0 ? '현재 보유액 기준' : '목표 확보 완료') + '</div></div></section>';
     html += '<div class="calc-notice" role="status">' + esc(ledgerNotice || '현재 보유액을 입력하면 차액이 기록됩니다. 판매 등록은 보유액과 목표에서 함께 차감됩니다.') + (ledgerUndo.length ? '<button class="calc-link" onclick="__gl.undoLedger()">장부 실행 취소 (' + ledgerUndo.length + ')</button>' : '') + '</div>';
     html += '<div class="ar-body"><section><div class="ar-sectionhead"><h2>계정별 보유 골드 <span class="ar-count">' + state.accounts.length + '</span></h2><span class="ar-hint">금액을 눌러 수정</span></div><div class="ar-accounts">';
     state.accounts.forEach(function (a, index) {
@@ -1590,6 +1639,7 @@ var dashboardPortraits = [];
     html += '<div class="calc-goal"><span>목표 ' + calcControl("", "target", target, "목표 금액 (원)") + '원</span><span>' + (target > 0 ? '목표 대비 예상 가치 <b>' + percentage.toFixed(1) + '%</b>' : '목표 금액을 설정해주세요') + '</span><strong class="' + (complete ? 'calc-success' : '') + '">' + (target > 0 ? (complete ? '목표 가치 확보' : '목표까지 ' + fmtItemWon(remaining) + ' 부족') : '') + '</strong></div>';
     html += '<div class="calc-track" role="progressbar" aria-label="목표 대비 예상 가치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.min(100, percentage) + '"><div style="width:' + Math.min(100, percentage) + '%"></div></div></div>';
     html += '<div class="calc-toolbar"><div><h3>보유 아이템 <span>' + state.items.length + '</span></h3><p>' + (state.itemPriceUpdating ? '가격 갱신 중…' : esc(formatPriceUpdatedAt(state.itemPriceLastUpdated))) + '</p></div><button class="data-btn" onclick="__gl.refreshItemPrices()" ' + (state.itemPriceUpdating ? 'disabled' : '') + '>지금 갱신</button></div>';
+    html += '<div class="calc-notice"><span>자동 시세 ' + state.items.filter(autoItem).length + '개 · 직접 입력 ' + state.items.filter(function (it) { return !autoItem(it); }).length + '개 — 직접 입력 가격은 갱신하지 않습니다.</span>' + (!state.itemPriceApiKey ? '<button class="calc-link" onclick="__gl.openDataModal()">API 연결하기</button>' : '') + '</div>';
     html += '<div class="calc-notice" role="status">' + esc(itemNotice || '금액과 수량을 눌러 수정 · Enter 저장 / Esc 취소') + (itemUndo ? '<button class="calc-link" onclick="__gl.undoCalc()">실행 취소</button>' : '') + '</div>';
     html += '<div class="calc-columns"><span>아이템</span><span>개당 가격 (G)</span><span>보유 수량</span><span>합계 (G)</span><span></span></div>';
     state.items.forEach(function (it) {
@@ -1662,7 +1712,7 @@ var dashboardPortraits = [];
       html += '<div class="data-section"><div class="data-section-title">⚙ 아이템 가격 자동 갱신</div>' +
         '<div class="data-section-desc">로스트아크 Open API 키를 입력하면 상급 아비도스 융화재료와 4티어 8레벨 보석 가격을 자동으로 가져옵니다.</div>' +
         '<label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">API KEY</label>' +
-        '<input id="item-price-api-key" class="modal-input" type="text" autocomplete="off" spellcheck="false" placeholder="예: 발급받은 API KEY를 붙여넣으세요" value="' + esc(state.itemPriceApiKey) + '" />' +
+        '<input id="item-price-api-key" class="modal-input" type="password" autocomplete="off" spellcheck="false" placeholder="예: 발급받은 API KEY를 붙여넣으세요" value="' + esc(state.itemPriceApiKey) + '" />' +
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">' +
         '<select id="item-price-interval" class="select-input" style="flex:1"><option value="30"' + (state.itemPriceUpdateInterval === 30 ? ' selected' : '') + '>30분마다</option><option value="60"' + (state.itemPriceUpdateInterval === 60 ? ' selected' : '') + '>1시간마다</option></select>' +
         '<button class="data-btn" onclick="__gl.saveItemPriceApi()">저장 · 즉시 갱신</button></div>' +
@@ -1671,6 +1721,7 @@ var dashboardPortraits = [];
 
       html += '<div class="data-section"><div class="data-section-title">백업 (JSON)</div>' +
         '<div class="data-section-desc">계정·기록·설정과 복원한 캐릭터 사진을 저장합니다. API 키는 제외됩니다. 백업에는 개인정보가 있으니 GitHub에 올리지 마세요.</div>' +
+        '<div class="data-section-desc">최근 내보내기 요청: ' + (lsGet("backupRequestedAt") ? esc(new Date(lsGet("backupRequestedAt")).toLocaleString("ko-KR")) : '아직 없음') + '<br>다운로드 완료 여부는 다운로드 폴더에서 확인하세요. 가져오기 시 기존 브라우저의 API 키·시트 연결을 유지합니다.</div>' +
         '<div class="data-btn-row"><button class="data-btn" onclick="__gl.exportJSON()">내보내기</button>' +
         '<button class="data-btn" onclick="__gl.triggerImport()">가져오기</button></div></div>';
       html += '<div class="data-section"><div class="data-section-title">캐릭터 사진 복원</div>' +
@@ -1904,7 +1955,7 @@ var dashboardPortraits = [];
     }
   }
 
-  ["undoLedger", "saveBase", "saveRate", "commitCardBill", "commitCash", "saveItemPriceApi", "saveSheetUrl", "commitCarriedEarned", "commitTarget", "commitRename", "addAccount", "deleteAccount", "addEntry", "deleteEntry", "commitEditEntry", "addItem", "deleteItem", "commitCalc", "undoCalc", "setPriceMode"].forEach(function (name) {
+  ["exportJSON", "exportCSV", "undoLedger", "saveBase", "saveRate", "commitCardBill", "commitCash", "saveItemPriceApi", "saveSheetUrl", "commitCarriedEarned", "commitTarget", "commitRename", "addAccount", "deleteAccount", "addEntry", "deleteEntry", "commitEditEntry", "addItem", "deleteItem", "commitCalc", "undoCalc", "setPriceMode"].forEach(function (name) {
     var action = window.__gl[name];
     window.__gl[name] = function () {
       var args = arguments;

@@ -66,6 +66,45 @@ async function sale(p, amount) {
     for (let i = 0; i < 5; i++) await p.evaluate(() => __gl.undoLedger());
     assert.equal((await week(p)).entries.length, 1);
     passes.push('cycle 2: sale/balance previews, selected account, persisted five-step undo');
+    await p.evaluate(() => localStorage.clear()); await p.reload();
+    assert.match(await p.locator('.ar-summary').textContent(), /목표 설정 필요/);
+    assert.doesNotMatch(await p.locator('.ar-summary').textContent(), /목표 확보 완료/);
+    await p.getByRole('button', { name: '기본 목표 설정', exact: true }).click();
+    await p.locator('#base-input').fill('150'); await p.evaluate(() => __gl.saveBase());
+    assert.equal((await week(p)).target, 1500000);
+    await seed(p);
+    await p.evaluate(async () => {
+      const original = URL.createObjectURL;
+      URL.createObjectURL = blob => { window.testBackup = blob; return original(blob); };
+      await __gl.exportJSON();
+    });
+    const backup = await p.evaluate(() => window.testBackup.text());
+    assert.equal(Object.hasOwn(JSON.parse(backup).settings, 'itemPriceApiKey'), false);
+    assert.ok(await p.evaluate(() => localStorage.getItem('lag_backupRequestedAt')));
+    const upload = async data => p.locator('#import-file-input').setInputFiles({ name: 'test.json', mimeType: 'application/json', buffer: Buffer.from(typeof data === 'string' ? data : JSON.stringify(data)) });
+    const before = await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage))));
+    await upload({ accounts: [] });
+    await p.waitForFunction(() => document.querySelector('.error-bar')?.textContent.includes('형식'));
+    assert.equal(await p.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage)))), before);
+    let acceptImport = false; const dialogs = [];
+    p.on('dialog', async d => { dialogs.push(d.message()); await (acceptImport ? d.accept() : d.dismiss()); });
+    await upload(backup); await p.waitForFunction(() => !document.querySelector('#import-file-input').value);
+    await p.waitForTimeout(100); assert.equal((await week(p)).target, 1500000);
+    assert.match(dialogs.at(-1), /계정 2개.*아이템 2개/);
+    const changed = JSON.parse(backup); changed.accounts[0].name = '복원 테스트'; changed.settings.itemPriceApiKey = 'untrusted-import-key'; changed.settings.sheetUrl = 'https://untrusted.invalid/';
+    acceptImport = true;
+    await p.evaluate(() => {
+      const original = Storage.prototype.setItem;
+      let calls = 0;
+      Storage.prototype.setItem = function(k, v) { if (++calls === 2) throw new DOMException('Test quota', 'QuotaExceededError'); return original.call(this, k, v); };
+    });
+    await upload(changed); await p.waitForFunction(() => document.querySelector('.error-bar')?.textContent.includes('복구'));
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_accounts'))[0].name), '테스트 A');
+    await p.reload(); await upload(changed);
+    await p.waitForFunction(() => document.querySelector('.ar-name')?.textContent.includes('복원 테스트'));
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_settings')).itemPriceApiKey), '');
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_settings')).sheetUrl), '');
+    passes.push('cycle 3: first goal, export, malformed/cancelled import, quota rollback, preview and safe import');
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ passes, runtimeErrors: errors }, null, 2));
   } finally { await browser.close(); }
