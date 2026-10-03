@@ -560,7 +560,7 @@
   }
 
   // ---------- localStorage ----------
-  var storageReady = false, storageSnapshot = "", storageNotice = "";
+  var storageReady = false, storageSnapshot = "", storageNotice = "", storageReadError = "";
   var ledgerUndo = [], ledgerNotice = "", saleAccount = "", saleDraft = "";
   function storageFingerprint() {
     return JSON.stringify(Object.keys(localStorage).filter(function (k) { return k.indexOf(STORAGE_PREFIX) === 0; }).sort().map(function (k) { return [k, localStorage.getItem(k)]; }));
@@ -571,10 +571,11 @@
     state.editingCarriedAccountId = null; state.editingTarget = false; state.editingEntryId = null;
     state.editingCardBill = false; state.editingCash = false;
     storageNotice = message;
-    init();
+    safeInit();
   }
   function withStorageLock(action) {
     var run = function () {
+      try {
       if (storageReady && storageFingerprint() !== storageSnapshot) {
         refreshAfterConflict("다른 탭에서 기록이 변경되어 최신 내용을 불러왔습니다. 이번 입력은 저장하지 않았습니다. 확인 후 다시 입력해주세요.");
         return;
@@ -583,7 +584,7 @@
         refreshAfterConflict("새 주차가 시작되어 이월했습니다. 날짜와 보유액을 확인한 뒤 다시 입력해주세요.");
         return;
       }
-      try { return action(); } catch (error) {
+      return action(); } catch (error) {
         refreshAfterConflict(error.message || "저장하지 못했습니다. 기존 기록을 다시 불러왔습니다.");
       }
     };
@@ -600,10 +601,12 @@
       var v = localStorage.getItem(STORAGE_PREFIX + key);
       return v ? JSON.parse(v) : null;
     } catch (e) {
+      storageReadError = "브라우저 저장값을 읽을 수 없거나 형식이 손상됐습니다.";
       return null;
     }
   }
   function lsSet(key, val) {
+    if (storageReadError) throw new Error(storageReadError + " 원본을 보존하기 위해 저장을 중단했습니다.");
     if (storageReady && storageFingerprint() !== storageSnapshot) throw new Error("다른 탭의 변경을 발견했습니다. 최신 기록을 확인 후 다시 입력해주세요.");
     try {
       localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
@@ -842,6 +845,7 @@
   }
   function autoItem(it) { return (it.id === "i1" || it.id === "i2") && it.priceMode === "auto"; }
   async function updateItemPrices(force) {
+    if (!storageReady) return;
     if (state.itemPriceUpdating || itemEdit) return;
     if (!state.itemPriceApiKey) {
       if (force) { itemNotice = "자동 시세를 사용하려면 데이터 메뉴에서 API 키를 설정해주세요."; render(); }
@@ -973,6 +977,7 @@
   }
 
   function init() {
+    if (storageReadError) throw new Error(storageReadError);
     state.accounts = loadAccounts();
     var settings = loadSettings();
     state.baseTarget = settings.baseTarget || DEFAULT_TARGET;
@@ -991,6 +996,12 @@
     state.items = loadItems();
     storageSnapshot = storageFingerprint(); storageReady = true;
     render();
+  }
+  function safeInit() {
+    try { init(); } catch (error) {
+      storageReady = false;
+      document.getElementById("app").innerHTML = '<main class="wrap dashboard-theme"><h1>브라우저 저장 상태를 확인해주세요</h1><p class="error-bar" role="alert">' + esc(error.message) + '</p><p>저장 권한·남은 공간을 확인해주세요. 기존 기록을 자동으로 삭제하거나 초기화하지 않습니다. 브라우저 데이터를 지우기 전에 백업 파일이 있는지 확인하세요.</p><button class="data-btn" onclick="__gl.retryStorage()">다시 확인</button></main>';
+    }
   }
   function saveSettings(skipSheetSync) {
     lsSet("settings", { baseTarget: state.baseTarget, itemTarget: state.itemTarget, exchangeRate: state.exchangeRate, saleFeePercent: state.saleFeePercent, cardBill: state.cardBill, cashOnHand: state.cashOnHand, sheetUrl: state.sheetUrl, lastSheetSyncAt: state.lastSheetSyncAt, itemPriceApiKey: state.itemPriceApiKey, itemPriceUpdateInterval: state.itemPriceUpdateInterval, itemPriceLastUpdated: state.itemPriceLastUpdated });
@@ -1086,21 +1097,23 @@
   }
   function csvCell(v) {
     var s = String(v);
+    if (typeof v === "string" && /^[\s]*[=+@-]/.test(s)) s = "'" + s;
     if (s.indexOf(",") >= 0 || s.indexOf('"') >= 0 || s.indexOf("\n") >= 0) {
       s = '"' + s.replace(/"/g, '""') + '"';
     }
     return s;
   }
   function buildHistoryRows() {
+    var columns = exportAccounts();
     return allWeeksData().map(function (w) {
       var earned = totalWeekEarned(w.carriedEarned, w.entries);
       var target = effectiveWeekTarget(w.target, w.entries);
-      var byAccount = {};
-      state.accounts.forEach(function (a) {
-        byAccount[a.name] = totalAccountEarned(w.carriedByAccount, w.entries, a.id);
+      var byAccount = Object.create(null);
+      columns.forEach(function (a) {
+        byAccount[a.label] = totalAccountEarned(w.carriedByAccount, w.entries, a.id);
       });
       var accounted = Object.keys(byAccount).reduce(function (sum, name) { return sum + byAccount[name]; }, 0);
-      if (earned !== accounted) byAccount["이월 조정 / 미배정"] = (byAccount["이월 조정 / 미배정"] || 0) + earned - accounted;
+      byAccount["이월 조정 / 미배정"] = earned - accounted;
       return {
         startKey: fmtKey(w.start),
         endKey: fmtKey(w.end),
@@ -1111,6 +1124,19 @@
       };
     });
   }
+  function exportAccounts() {
+    var ids = state.accounts.map(function (a) { return a.id; });
+    allWeeksData().forEach(function (w) {
+      Object.keys(w.carriedByAccount || {}).concat((w.entries || []).map(function (e) { return e.accountId; })).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+    });
+    var used = new Set(["이월 조정 / 미배정"]);
+    return ids.map(function (id) {
+      var account = state.accounts.find(function (a) { return a.id === id; });
+      var label = (account ? account.name : "삭제된 계정") + " [" + id + "]";
+      while (used.has(label)) label += "·";
+      used.add(label); return { id: id, label: label };
+    });
+  }
   function buildEntryRows() {
     var rows = [];
     allWeeksData().forEach(function (w) {
@@ -1118,8 +1144,8 @@
         rows.push({
           weekStart: fmtKey(w.start),
           date: e.date,
-          account: accountNameById(e.accountId),
-          type: e.type === "sell" ? "판매" : "획득",
+          account: accountNameById(e.accountId) + " [" + e.accountId + "]",
+          type: e.type === "sell" ? "판매" : e.balanceUpdate ? "보유액 수정" : "획득",
           amount: e.amount
         });
       });
@@ -1132,8 +1158,8 @@
     });
   }
   function buildHistoryCSV() {
-    var accountNames = state.accounts.map(function (a) { return a.name; });
-    var rows = [["기간 시작", "기간 종료", "목표(골드)", "획득(골드)", "상태"].concat(accountNames)];
+    var accountNames = exportAccounts().map(function (a) { return a.label; }).concat(["이월 조정 / 미배정"]);
+    var rows = [["기간 시작", "기간 종료", "목표(골드)", "보유(골드)", "상태"].concat(accountNames)];
     buildHistoryRows().forEach(function (r) {
       var line = [r.startKey, r.endKey, r.target, r.earned, r.status];
       accountNames.forEach(function (n) { line.push(r.byAccount[n] || 0); });
@@ -1189,6 +1215,7 @@
 
   // ---------- 액션 ----------
   window.__gl = {
+    retryStorage: function () { storageReadError = ""; storageReady = false; safeInit(); },
     updatePlan: updatePlan,
     togglePlan: function (open) { planOpen = open; },
     updateSalePreview: updateSalePreview,
@@ -2049,7 +2076,7 @@ var dashboardPortraits = [];
       banner.textContent = "다른 탭에서 변경되었습니다. 다음 저장 시 최신 내용을 확인하며, 오래된 입력으로 덮어쓰지 않습니다.";
     }
   });
-  init();
+  safeInit();
   setTimeout(function () { updateItemPrices(false); }, 700);
   setInterval(function () { updateItemPrices(false); }, 60 * 1000);
 })();

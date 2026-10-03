@@ -10,6 +10,8 @@
 !/scripts/check-release.cjs
 !/scripts/verify-live.cjs
 !/scripts/test-ledger.cjs
+!/scripts/test-review-cycles.cjs
+!/REVIEW-50.md
 !/REVIEW-CYCLES.md
 !/.github/
 !/.github/workflows/
