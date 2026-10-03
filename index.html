@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.1.2">
+<meta name="application-version" content="1.2.0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -44,7 +44,7 @@
 
   /* 뷰 탭 */
   .view-tabs { display: flex; gap: 8px; margin-bottom: 18px; background: var(--panel); padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
-  .view-tab { flex: 1; text-align: center; padding: 10px; border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 13.5px; font-weight: 600; transition: all 0.2s; }
+  .view-tab { flex: 1; text-align: center; padding: 10px; border:0; background:transparent; font-family:inherit; border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 13.5px; font-weight: 600; transition: all 0.2s; }
   .view-tab.active { background: var(--panel-sub-2); color: var(--gold); font-weight: 700; }
 
   /* 계정 칩 */
@@ -417,7 +417,7 @@
   .calc-toolbar h3 span{font-size:12px;color:#a7b0bf;margin-left:6px}
   .calc-toolbar p{font-size:12px;color:#a7b0bf;margin:6px 0 0}
   .calc-notice{min-height:36px;font-size:12px;color:#b8c3d2;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-  .calc-columns,.calc-row{display:grid;grid-template-columns:minmax(180px,1fr) 145px 125px 155px 36px;gap:12px;align-items:center}
+  .calc-columns,.calc-row{display:grid;grid-template-columns:minmax(180px,1fr) 145px 125px 155px 44px;gap:12px;align-items:center}
   .calc-columns{background:#252830;padding:10px 12px;color:#acb6c5;font-size:12px;border-radius:5px}
   .calc-columns>span:not(:first-child){text-align:right}
   .calc-row{padding:16px 12px;border-bottom:1px solid var(--border);min-height:84px}
@@ -434,7 +434,7 @@
   .calc-updated{color:#9aa8bb}
   .calc-edit{width:100%;min-width:0;max-width:240px;background:#12151a;color:#f1f3f7;border:1px solid var(--gold);padding:8px;border-radius:5px;font:inherit;font-size:16px;text-align:inherit}
   .calc-goal .calc-edit{width:140px}
-  .calc-delete{width:36px;min-height:40px;background:none;border:0;border-radius:5px;color:#aab5c5;font-size:20px;cursor:pointer}
+  .calc-delete{width:44px;min-height:44px;background:none;border:0;border-radius:5px;color:#aab5c5;font-size:20px;cursor:pointer}
   .calc-delete:hover{background:#35242a;color:#ff97a8}
   .calc-add{background:#252a33;color:#d4dce9;border:1px solid #3a414d;border-radius:6px;font:inherit;font-size:13px;padding:9px 14px;margin-top:16px;cursor:pointer}
   .calc-needed{margin-top:28px;padding:18px 20px;background:#181b20;border:1px solid var(--border);border-radius:8px}
@@ -449,6 +449,8 @@
   .calc-plan label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;font-size:13px}
   .calc-plan input{width:110px;max-width:40%;min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:right;font:inherit}
   .calc-plan output{display:block;padding:14px;background:var(--panel);border-radius:6px;color:var(--gold);line-height:1.7;font-size:14px}
+  button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  @media(max-width:700px){.calc-row{grid-template-columns:1fr 1fr 44px!important}.calc-value,.calc-link,.data-btn,.view-tab,.filter-btn{min-height:44px}.calc-assumption{align-items:flex-start}.calc-assumption>span{line-height:1.7}.calc-plan label>span{min-width:0;overflow-wrap:anywhere}}
   @media(max-width:900px){.calc-columns,.calc-row{grid-template-columns:minmax(140px,1fr) 110px 100px 120px 32px;gap:8px}.calc-totals{gap:20px}.calc-totals>div+div{padding-left:20px}.calc-totals strong{font-size:26px}}
   @media(max-width:700px){.dashboard-theme .calc-panel{padding:16px}.calc-summary{padding:18px}.calc-columns{display:none}.calc-row{grid-template-columns:1fr 1fr 36px;gap:14px}.calc-name{grid-column:1/3}.calc-delete{grid-column:3;grid-row:1}.calc-row .calc-cell{grid-row:2;text-align:left}.calc-row .calc-subtotal{grid-row:3;grid-column:1/4;display:flex;justify-content:space-between}.calc-cell:before{content:attr(data-label);display:block;font-size:12px;color:#aab5c5;margin-bottom:5px}.calc-row{position:relative}.calc-row .calc-delete{grid-row:1;align-self:start}.calc-totals{flex-direction:column;gap:12px}.calc-totals>div+div{border:0;padding:0}.calc-goal{gap:10px}.calc-goal>strong{margin-left:0;width:100%}.calc-needed{padding:16px}.calc-needed-row{align-items:flex-start;flex-wrap:wrap;gap:8px}.calc-needed-row strong{margin-left:auto}.calc-toolbar{margin-top:22px}.calc-notice{flex-wrap:wrap}}
 
@@ -504,7 +506,7 @@
   }
   function fmtGold(n) {
     var v = (n || 0) / 10000;
-    var s = v.toFixed(2).replace(/\.?0+$/, "");
+    var s = v.toFixed(4).replace(/\.?0+$/, "");
     if (s === "" || s === "-") s = "0";
     return s + "만";
   }
@@ -528,7 +530,7 @@
   }
   function manValueForInput(n) {
     var v = (n || 0) / 10000;
-    var s = v.toFixed(2).replace(/\.?0+$/, "");
+    var s = v.toFixed(4).replace(/\.?0+$/, "");
     if (s === "" || s === "-") s = "0";
     return s;
   }
@@ -539,6 +541,14 @@
     });
     var digits = normalized.replace(/[^0-9]/g, "");
     return digits ? parseInt(digits, 10) : 0;
+  }
+  function validatedWholeInput(el, positive) {
+    if (!el) return null;
+    var text = el.value.trim(), n = Number(text.replace(/,/g, ""));
+    if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text) || !Number.isSafeInteger(n) || n < (positive ? 1 : 0)) {
+      el.setCustomValidity(positive ? "0보다 큰 정수를 입력해주세요." : "0 이상의 정수를 입력해주세요."); el.reportValidity(); return null;
+    }
+    el.setCustomValidity(""); return n;
   }
   function fmtWon(n) {
     return Math.round(n || 0).toLocaleString("ko-KR") + "원";
@@ -559,6 +569,7 @@
     storageReady = false;
     itemEdit = null; itemUndo = null; ledgerNotice = ""; saleDraft = "";
     state.editingCarriedAccountId = null; state.editingTarget = false; state.editingEntryId = null;
+    state.editingCardBill = false; state.editingCash = false;
     storageNotice = message;
     init();
   }
@@ -700,11 +711,12 @@
   }
   function loadSettings() {
     var s = lsGet("settings") || {};
+    var before = JSON.stringify(s);
     var defaults = { baseTarget: DEFAULT_TARGET, itemTarget: 0, exchangeRate: DEFAULT_RATE, cardBill: 0, cashOnHand: 0, sheetUrl: "", lastSheetSyncAt: 0, itemPriceApiKey: "", itemPriceUpdateInterval: 60, itemPriceLastUpdated: 0 };
     Object.keys(defaults).forEach(function (k) {
       if (s[k] === undefined || s[k] === null) s[k] = defaults[k];
     });
-    lsSet("settings", s);
+    if (JSON.stringify(s) !== before) lsSet("settings", s);
     return s;
   }
   function getWeek(key) { return lsGet("week_" + key); }
@@ -716,9 +728,9 @@
   ];
   function loadItems() {
     var it = lsGet("items");
+    var before = JSON.stringify(it);
     if (!Array.isArray(it)) {
       it = DEFAULT_ITEMS.slice();
-      lsSet("items", it);
     } else {
       // 기존 사용자의 아이템 목록은 그대로 유지하면서 새 계산 대상만 추가
       // 기존에 겁화/작열로 나뉘어 저장된 데이터는 하나의 "4티어 8레벨 보석"으로 통합
@@ -736,11 +748,11 @@
       it.forEach(function (cur) {
         if (cur.id === "i1" && cur.name === "상급 아비도스 융화재료") cur.name = "상급 아비도스 융화 재료";
       });
-      lsSet("items", it);
     }
     it.forEach(function (item) {
       if (!item.priceMode) item.priceMode = "manual"; // Preserve existing user prices until explicitly opted in.
     });
+    if (JSON.stringify(it) !== before) lsSet("items", it);
     return it;
   }
   function saveItems() { lsSet("items", state.items); scheduleSheetSync(); }
@@ -818,11 +830,11 @@
       var text = input.value.trim(); planDraft[input.dataset.id] = text;
       var qty = text === "" ? 0 : Number(text);
       var it = state.items.find(function (row) { return row.id === input.dataset.id; });
-      if (!/^\d*$/.test(text) || !Number.isSafeInteger(qty) || !it || !Number.isSafeInteger(qty * it.price)) { valid = false; return; }
+      if (!/^\d*$/.test(text) || !Number.isSafeInteger(qty) || !it || !Number.isFinite(qty * it.price) || qty * it.price > Number.MAX_SAFE_INTEGER) { valid = false; return; }
       if (qty > 0 && !(it.price > 0)) missing = true;
       extraGold += qty * it.price;
     });
-    if (!valid || !Number.isSafeInteger(extraGold + itemsGrandTotal(null, 0))) { output.textContent = "추가 수량은 계산 가능한 범위의 0 이상 정수로 입력해주세요."; return; }
+    if (!valid || !Number.isFinite(extraGold + itemsGrandTotal(null, 0)) || extraGold + itemsGrandTotal(null, 0) > Number.MAX_SAFE_INTEGER) { output.textContent = "추가 수량은 계산 가능한 범위의 0 이상 정수로 입력해주세요."; return; }
     if (missing) { output.textContent = "계획에 포함한 아이템의 가격을 먼저 입력해주세요."; return; }
     if (!(state.itemTarget > 0)) { output.textContent = "목표 금액을 먼저 설정해주세요."; return; }
     var remaining = Math.max(0, state.itemTarget - netItemWon(itemsGrandTotal(null, 0) + extraGold));
@@ -934,6 +946,7 @@
   }
 
   function saveCurrentWeek(skipUndo) {
+    if (!Number.isSafeInteger(state.weekTarget) || !Number.isSafeInteger(totalWeekEarned(state.weekCarriedEarned, state.entries))) throw new Error("총액이 정확하게 계산 가능한 범위를 초과했습니다. 변경을 저장하지 않았습니다.");
     var previous = getWeek(state.weekKey);
     if (!skipUndo && previous) {
       var snapshot = Object.assign({}, previous); delete snapshot.undo;
@@ -1028,7 +1041,7 @@
     var fail = function () { throw new Error("백업의 계정·금액·기록 형식을 확인해주세요. 기존 데이터는 변경하지 않았습니다."); };
     if (!plain(obj) || !Array.isArray(obj.accounts) || !obj.accounts.length || obj.accounts.length > 100 || !Array.isArray(obj.items) || !plain(obj.settings)) fail();
     if (!obj.accounts.every(function (a) { return plain(a) && id(a.id) && typeof a.name === "string" && a.name.length > 0 && a.name.length <= 200; }) || new Set(obj.accounts.map(function (a) { return a.id; })).size !== obj.accounts.length) fail();
-    if (obj.items.length > 1000 || !obj.items.every(function (it) { return plain(it) && id(it.id) && typeof it.name === "string" && it.name.length <= 200 && number(it.price, false) && number(it.qty, false) && Number.isSafeInteger(it.price * it.qty); }) || new Set(obj.items.map(function (it) { return it.id; })).size !== obj.items.length) fail();
+    if (obj.items.length > 1000 || !obj.items.every(function (it) { return plain(it) && id(it.id) && typeof it.name === "string" && it.name.length <= 200 && Number.isFinite(it.price) && it.price >= 0 && it.price <= 1000000000000 && number(it.qty, false) && Number.isFinite(it.price * it.qty) && it.price * it.qty <= Number.MAX_SAFE_INTEGER; }) || new Set(obj.items.map(function (it) { return it.id; })).size !== obj.items.length) fail();
     var out = { accounts: obj.accounts, items: obj.items }, weeks = 0, entries = 0;
     function validWeek(w) {
       if (!plain(w) || !number(w.target, false) || !Array.isArray(w.entries) || w.entries.length > 100000) return false;
@@ -1139,6 +1152,10 @@
     syncTimer = setTimeout(syncToSheet, 4000);
   }
   function syncToSheet(manual) {
+    if (storageReady && storageFingerprint() !== storageSnapshot) {
+      if (manual) { storageNotice = "다른 탭의 변경이 있습니다. 새로고침 후 최신 기록으로 동기화해주세요."; render(); }
+      return;
+    }
     if (!state.sheetUrl) {
       if (manual) { state.error = "구글 시트 웹앱 URL을 먼저 설정해주세요."; render(); }
       return;
@@ -1159,9 +1176,11 @@
     }).then(function (text) {
       var result = JSON.parse(text);
       if (!result || result.ok !== true) throw new Error((result && result.error) || "저장 확인 실패");
-      state.lastSheetSyncAt = result.syncedAt ? new Date(result.syncedAt).getTime() : Date.now();
-      saveSettings(true);
-      if (manual) { state.error = ""; state.syncMsg = "시트 저장을 확인했어요. " + fmtSheetSyncTime(state.lastSheetSyncAt); render(); setTimeout(function () { state.syncMsg = ""; render(); }, 3000); }
+      return withStorageLock(function () {
+        state.lastSheetSyncAt = result.syncedAt ? new Date(result.syncedAt).getTime() : Date.now();
+        saveSettings(true);
+        if (manual) { state.error = ""; state.syncMsg = "시트 저장을 확인했어요. " + fmtSheetSyncTime(state.lastSheetSyncAt); render(); setTimeout(function () { state.syncMsg = ""; render(); }, 3000); }
+      });
     }).catch(function () {
       state.error = "구글 시트 저장 확인에 실패했어요. Apps Script를 새 코드로 교체·재배포한 뒤 URL을 확인해주세요.";
       render();
@@ -1214,8 +1233,9 @@
     closeRateModal: function () { state.rateModalOpen = false; render(); },
     saveRate: function () {
       var el = document.getElementById("rate-input");
-      var v = parseIntInput(el ? el.value : "");
-      state.exchangeRate = v || DEFAULT_RATE;
+      var v = validatedWholeInput(el, true);
+      if (v === null) return;
+      state.exchangeRate = v;
       state.rateModalOpen = false;
       saveSettings();
       render();
@@ -1228,7 +1248,9 @@
     },
     commitCardBill: function () {
       var el = document.getElementById("card-bill-input");
-      var v = parseIntInput(el ? el.value : "");
+      if (!state.editingCardBill || !el) return;
+      var v = validatedWholeInput(el, false);
+      if (v === null) return;
       state.cardBill = v || 0;
       state.editingCardBill = false;
       saveSettings();
@@ -1242,7 +1264,9 @@
     },
     commitCash: function () {
       var el = document.getElementById("cash-input");
-      var v = parseIntInput(el ? el.value : "");
+      if (!state.editingCash || !el) return;
+      var v = validatedWholeInput(el, false);
+      if (v === null) return;
       state.cashOnHand = v || 0;
       state.editingCash = false;
       saveSettings();
@@ -1356,9 +1380,8 @@
       if (accountId === null) return;
       var el = document.getElementById("carried-earned-input");
       if (!el) return;
-      var text = el.value.trim().replace(/,/g, "");
-      var value = Number(text) * 10000;
-      if (!text || !isFinite(value) || value < 0 || !Number.isSafeInteger(Math.round(value))) {
+      var value = parseGoldInput(el.value, false);
+      if (value === null) {
         el.setCustomValidity("현재 보유 골드를 만 단위로 입력해주세요. 예: 95 또는 0");
         el.reportValidity();
         return;
@@ -1375,9 +1398,11 @@
     },
     commitTarget: function () {
       var el = document.getElementById("target-input");
-      var v = parseManInput(el ? el.value : "");
+      if (!state.editingTarget || !el) return;
+      var v = parseGoldInput(el.value, false);
+      if (v === null || !Number.isSafeInteger(v + totalSold(state.entries))) { el.setCustomValidity("0 이상의 목표를 만 단위로 입력해주세요."); el.reportValidity(); return; }
       state.editingTarget = false;
-      if (v) {
+      if (v !== effectiveWeekTarget(state.weekTarget, state.entries)) {
         state.weekTarget = v + totalSold(state.entries);
         saveCurrentWeek();
       }
@@ -1482,6 +1507,10 @@
       if (focusEl) focusEl.focus();
     },
     deleteEntry: function (id) {
+      var entry = state.entries.find(function (e) { return e.id === id; });
+      if (!entry) return;
+      var balance = totalAccountEarned(state.weekCarriedByAccount, state.entries, entry.accountId);
+      if (entry.type !== "sell" && balance - entry.amount < Math.min(0, balance)) { state.error = "이 내역을 삭제하면 보유액이 음수가 됩니다. 연결된 판매 내역을 먼저 확인해주세요."; render(); return; }
       if (!confirm("이 기록을 삭제할까요?")) return;
       state.entries = state.entries.filter(function (e) { return e.id !== id; });
       saveCurrentWeek();
@@ -1499,12 +1528,12 @@
       var amount = parseGoldInput(el ? el.value : "", !!(existing && existing.balanceUpdate));
       if (!existing) return;
       var balance = totalAccountEarned(state.weekCarriedByAccount, state.entries, existing.accountId);
-      if (amount === null || (existing.type === "sell" && (amount <= 0 || amount > balance + existing.amount))) {
+      if (amount === null || (existing.type === "sell" && (amount <= 0 || amount > balance + existing.amount)) || (existing.type !== "sell" && balance - existing.amount + amount < Math.min(0, balance))) {
         if (el) { el.setCustomValidity("올바른 금액을 입력해주세요. 판매는 0보다 크고 판매 전 보유액 이하여야 합니다."); el.reportValidity(); }
         return;
       }
       state.editingEntryId = null;
-      if (amount) {
+      if (amount !== existing.amount) {
         state.entries = state.entries.map(function (e) {
           return e.id === id ? Object.assign({}, e, { amount: amount }) : e;
         });
@@ -1546,6 +1575,9 @@
       } else if (edit.field === "fee") {
         value = Number(text);
         if (!/^\d+(?:\.\d{1,2})?$/.test(text) || !Number.isFinite(value) || value < 0 || value >= 100) { input.setCustomValidity("수수료는 0 이상 100 미만, 소수점 두 자리까지 입력해주세요."); input.reportValidity(); return; }
+      } else if (edit.field === "price") {
+        value = Number(text.replace(/,/g, ""));
+        if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,4})?$/.test(text) || !Number.isFinite(value) || value < 0 || value > 1000000000000) { input.setCustomValidity("가격은 0 이상, 소수점 네 자리까지 입력해주세요."); input.reportValidity(); return; }
       } else {
         if (!/^(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)$/.test(text)) {
           input.setCustomValidity("0 이상의 정수를 입력해주세요. 소수와 음수는 사용할 수 없습니다."); input.reportValidity(); return;
@@ -1566,7 +1598,7 @@
           var nextTotal = state.items.reduce(function (sum, row) {
             return sum + (row.id === it.id && edit.field === "price" ? value : row.price || 0) * (row.id === it.id && edit.field === "qty" ? value : row.qty || 0);
           }, 0);
-          if (!Number.isSafeInteger(nextTotal)) { input.setCustomValidity("총액이 정확하게 계산할 수 있는 범위를 초과했습니다."); input.reportValidity(); return; }
+          if (!Number.isFinite(nextTotal) || nextTotal > Number.MAX_SAFE_INTEGER) { input.setCustomValidity("총액이 정확하게 계산할 수 있는 범위를 초과했습니다."); input.reportValidity(); return; }
         }
         itemUndo = { type: "field", id: it.id, field: edit.field, value: it[edit.field], priceMode: it.priceMode, priceError: it.priceError };
         it[edit.field] = value;
@@ -1603,7 +1635,12 @@
     },
     neededToggle: function (open) { neededOpen = open; },
     keyEnter: function (evt, fn) {
-      if (evt.key === "Enter") fn();
+      if (evt.key === "Enter") { evt.preventDefault(); fn(); }
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        state.editingTarget = false; state.editingEntryId = null; state.editingCardBill = false; state.editingCash = false;
+        state.baseModalOpen = false; state.rateModalOpen = false; render();
+      }
     }
   };
 
@@ -1661,8 +1698,8 @@ var dashboardPortraits = [];
   }
   function calcControl(id, field, value, label) {
     var editing = itemEdit && itemEdit.id === id && itemEdit.field === field;
-    var display = field === "name" || field === "fee" ? value : fmtNum(value);
-    if (editing) return '<input id="calc-editor" class="calc-edit" aria-label="' + esc(label) + '" value="' + esc(display) + '" inputmode="' + (field === "name" ? "text" : field === "fee" ? "decimal" : "numeric") + '" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCalc(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCalc(this);}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelCalc();}" />';
+    var display = field === "name" || field === "fee" ? value : field === "price" ? Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 4 }) : fmtNum(value);
+    if (editing) return '<input id="calc-editor" class="calc-edit" aria-label="' + esc(label) + '" value="' + esc(display) + '" inputmode="' + (field === "name" ? "text" : field === "fee" || field === "price" ? "decimal" : "numeric") + '" oninput="this.setCustomValidity(\'\')" onblur="__gl.commitCalc(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();__gl.commitCalc(this);}else if(event.key===\'Escape\'){event.preventDefault();__gl.cancelCalc();}" />';
     return '<button type="button" class="calc-value" data-id="' + esc(id) + '" data-field="' + field + '" aria-label="' + esc(label + " 수정") + '" onclick="__gl.editCalc(this.dataset.id,this.dataset.field)">' + esc(display) + '<span class="calc-pencil" aria-hidden="true">✎</span></button>';
   }
   function renderCalculator() {
@@ -1702,6 +1739,8 @@ var dashboardPortraits = [];
   function render() {
     // Background sync must not replace an active calculator draft or its caret.
     if (itemEdit && document.activeElement && document.activeElement.id === "calc-editor") return;
+    var activeId = document.activeElement && document.activeElement.id;
+    if ((activeId === "carried-earned-input" && state.editingCarriedAccountId !== null) || (activeId === "target-input" && state.editingTarget) || (activeId === "entry-edit-input" && state.editingEntryId !== null) || (activeId === "card-bill-input" && state.editingCardBill) || (activeId === "cash-input" && state.editingCash)) return;
     if (isRendering) {
       renderQueued = true;
       return;
@@ -1737,8 +1776,8 @@ var dashboardPortraits = [];
 
     // 뷰 탭
     html += '<div class="view-tabs">' +
-      '<div class="view-tab' + (state.view === "ledger" ? " active" : "") + '" onclick="__gl.setView(\'ledger\')">주간 골드</div>' +
-      '<div class="view-tab' + (state.view === "items" ? " active" : "") + '" onclick="__gl.setView(\'items\')">아이템 계산기</div>' +
+      '<button type="button" class="view-tab' + (state.view === "ledger" ? " active" : "") + '" aria-pressed="' + (state.view === "ledger") + '" onclick="__gl.setView(\'ledger\')">주간 골드</button>' +
+      '<button type="button" class="view-tab' + (state.view === "items" ? " active" : "") + '" aria-pressed="' + (state.view === "items") + '" onclick="__gl.setView(\'items\')">아이템 계산기</button>' +
       '</div>';
 
     if (storageNotice) html += '<div class="error-bar" role="status">' + esc(storageNotice) + '</div>';

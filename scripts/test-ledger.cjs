@@ -138,6 +138,93 @@ async function sale(p, amount) {
     await p.locator('.calc-delete[data-id="i1"]').click(); await p.waitForFunction(() => document.querySelectorAll('.calc-row').length === 1);
     await p.evaluate(() => __gl.undoCalc()); assert.equal(await p.locator('.calc-row').count(), 2);
     passes.push('cycle 4: gross/net valuation, fee persistence/validation, mixed plan without ledger mutation, calculator undo');
+    // A full second pass through mobile, keyboard, network and storage failure paths.
+    for (const view of ['ledger', 'items']) {
+      await p.evaluate(v => __gl.setView(v), view);
+      for (const width of [320, 390, 520, 736, 1100]) {
+        await p.setViewportSize({ width, height: 950 });
+        assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, view + ' overflow ' + width);
+        if (view === 'items') { const box = await p.locator('.calc-delete').first().boundingBox(); assert.ok(box.width >= 44 && box.height >= 44); }
+      }
+    }
+    await p.getByRole('button', { name: '주간 골드', exact: true }).focus(); await p.keyboard.press('Enter');
+    assert.equal(await p.locator('.ar-summary').count(), 1);
+    await seed(p); await p.locator('.ar-target').click(); await p.locator('#target-input').fill('0'); await p.evaluate(() => __gl.commitTarget());
+    assert.equal((await week(p)).target, 0);
+    await p.locator('.ar-target').click(); await p.locator('#target-input').fill('1.2345'); await p.evaluate(() => __gl.commitTarget());
+    await p.locator('.ar-target').click(); assert.equal(await p.locator('#target-input').inputValue(), '1.2345'); await p.locator('#target-input').press('Escape');
+    await seed(p); await p.locator('.ar-balance').first().click(); await p.locator('#carried-earned-input').fill('50'); await p.evaluate(() => __gl.commitCarriedEarned());
+    const earnedId = (await week(p)).entries[0].id;
+    await sale(p, 40); await p.evaluate(id => __gl.deleteEntry(id), earnedId);
+    assert.equal((await week(p)).entries.length, 2);
+    assert.match(await p.locator('.error-bar').first().textContent(), /음수/);
+    await p.evaluate(id => __gl.startEditEntry(id), earnedId); await p.locator('#entry-edit-input').fill('0'); await p.evaluate(id => __gl.commitEditEntry(id), earnedId);
+    assert.equal((await week(p)).entries.find(e => e.id === earnedId).amount, 200000);
+    await p.locator('#entry-edit-input').press('Escape');
+    await seed(p);
+    const savedBeforeFailure = await week(p);
+    await p.evaluate(() => { Storage.prototype.setItem = function() { throw new DOMException('Test quota', 'QuotaExceededError'); }; });
+    await sale(p, 10);
+    assert.deepEqual(await week(p), savedBeforeFailure);
+    assert.match(await p.locator('.error-bar').first().textContent(), /저장되지 않았/);
+    assert.equal(await p.locator('.ar-balance').first().textContent(), '30만');
+    await p.reload(); await sale(p, 10);
+    const oldWeek = await week(p);
+    await p.evaluate(() => {
+      const NativeDate = Date, d = new Date(); d.setDate(d.getDate() + 7);
+      window.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [d.getTime()])); } static now() { return d.getTime(); } };
+    });
+    await sale(p, 5);
+    assert.match(await p.locator('.error-bar').first().textContent(), /새 주차/);
+    const allWeeks = await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('lag_week_')).sort().map(k => JSON.parse(localStorage.getItem(k))));
+    assert.deepEqual(allWeeks[0], oldWeek);
+    assert.equal(allWeeks[1].target, 2900000); assert.equal(allWeeks[1].carriedEarned, 1000000); assert.equal(allWeeks[1].entries.length, 0);
+    passes.push('cycle 5: five viewport widths, 44px controls, keyboard tabs, precision/zero target, negative-history protection, persistent quota failure, rollover');
+    await seed(p);
+    await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('lag_settings')); s.itemPriceApiKey = 'test-only'; localStorage.setItem('lag_settings', JSON.stringify(s)); });
+    await p.reload();
+    await p.evaluate(() => {
+      __gl.setView('items');
+      window.fetch = async url => { await new Promise(r => setTimeout(r, 200)); if (url.includes('auctions')) throw new Error('test unavailable'); return { ok: true, json: async () => ({ Items: [{ Name: '상급 아비도스 융화 재료', RecentPrice: 300, CurrentMinPrice: 300, BundleCount: 1 }] }) }; };
+    });
+    await p.evaluate(() => __gl.setPriceMode('i1', 'auto')); await p.evaluate(() => __gl.setPriceMode('i2', 'auto'));
+    await p.getByRole('button', { name: '지금 갱신', exact: true }).click();
+    await p.waitForFunction(() => !document.querySelector('.calc-toolbar button').disabled);
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_items'))[0].price), 300);
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_items'))[1].price), 315998);
+    assert.match(await p.locator('.calc-error').textContent(), /이전 가격/);
+    await edit('i1', 'price', '450');
+    await p.getByRole('button', { name: '지금 갱신', exact: true }).click(); await p.waitForFunction(() => !document.querySelector('.calc-toolbar button').disabled);
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_items'))[0].price), 450);
+    await p.evaluate(() => __gl.setPriceMode('i1', 'auto'));
+    await p.getByRole('button', { name: '지금 갱신', exact: true }).click();
+    await p.locator('.calc-value[data-id="i1"][data-field="qty"]').click(); await p.locator('#calc-editor').fill('12345');
+    await p.waitForTimeout(350); assert.equal(await p.locator('#calc-editor').inputValue(), '12345'); await p.locator('#calc-editor').press('Escape');
+    passes.push('regression: mocked partial API failure, manual price protection and in-progress draft protection');
+    await seed(p); await p.evaluate(() => __gl.setView('items')); await edit('i1', 'price', '2.43');
+    await p.evaluate(async () => {
+      const original = URL.createObjectURL;
+      URL.createObjectURL = blob => { window.testBackup = blob; return original(blob); };
+      await __gl.exportJSON();
+    });
+    const photoBackup = JSON.parse(await p.evaluate(() => window.testBackup.text()));
+    photoBackup.portraitImages = [await p.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1; return canvas.toDataURL('image/png'); })];
+    photoBackup.portraitBindings = { a1: 0 };
+    await upload(photoBackup); await p.waitForFunction(() => document.querySelector('.ar-portrait img'));
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('lag_items'))[0].price), 2.43);
+    const expectedVersion = fs.readFileSync(path.join(__dirname, '../VERSION'), 'utf8').trim();
+    for (const view of ['ledger', 'items']) { await p.evaluate(v => __gl.setView(v), view); assert.equal(await p.locator('.app-version').textContent(), '골드 장부 · v' + expectedVersion); }
+    passes.push('release: decimal price and synthetic portrait backup roundtrip, shared footer version on both tabs');
+    if (process.env.LEDGER_SCREENSHOT_DIR) {
+      await seed(p);
+      for (const view of ['ledger', 'items']) {
+        await p.evaluate(v => __gl.setView(v), view);
+        for (const width of [390, 1100]) {
+          await p.setViewportSize({ width, height: 950 });
+          await p.screenshot({ path: path.join(process.env.LEDGER_SCREENSHOT_DIR, 'v1.2-' + view + '-' + width + '.png'), fullPage: true });
+        }
+      }
+    }
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ passes, runtimeErrors: errors }, null, 2));
   } finally { await browser.close(); }
