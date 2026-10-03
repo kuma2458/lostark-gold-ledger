@@ -652,6 +652,8 @@
     itemPriceApiKey: "",
     itemPriceUpdateInterval: 60,
     itemPriceLastUpdated: 0,
+    itemPriceLastAttempt: 0,
+    itemPriceLastSuccess: 0,
     itemPriceUpdating: false,
     itemPriceError: "",
     editingTarget: false,
@@ -794,13 +796,7 @@
     };
   }
   async function fetchMarketUnitPrice(itemName) {
-    var res = await fetch("https://developer-lostark.game.onstove.com/markets/items", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({ Sort: "GRADE", CategoryCode: 50000, ItemName: itemName, PageNo: 1, SortCondition: "ASC" })
-    });
-    if (!res.ok) throw new Error("시장 API " + res.status);
-    var data = await res.json();
+    var data = await requestPriceJSON("https://developer-lostark.game.onstove.com/markets/items", { Sort: "GRADE", CategoryCode: 50000, ItemName: itemName, PageNo: 1, SortCondition: "ASC" });
     var items = data.Items || [];
     var normalizedName = String(itemName || "").replace(/\s/g, "");
     var exact = items.filter(function (x) { return String(x.Name || "").replace(/\s/g, "") === normalizedName; });
@@ -812,19 +808,25 @@
     return price / bundle;
   }
   async function fetchGemUnitPrice() {
-    var res = await fetch("https://developer-lostark.game.onstove.com/auctions/items", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({ Sort: "BUY_PRICE", CategoryCode: 210000, ItemTier: 4, ItemName: "8레벨", PageNo: 1, SortCondition: "ASC" })
-    });
-    if (!res.ok) throw new Error("경매장 API " + res.status);
-    var data = await res.json();
+    var data = await requestPriceJSON("https://developer-lostark.game.onstove.com/auctions/items", { Sort: "BUY_PRICE", CategoryCode: 210000, ItemTier: 4, ItemName: "8레벨", PageNo: 1, SortCondition: "ASC" });
     var prices = (data.Items || []).map(function (x) {
       var ai = x.AuctionInfo || {};
       return parseApiNumber(ai.BuyPrice);
     }).filter(function (v) { return v != null && v > 0; });
     if (!prices.length) throw new Error("8레벨 보석 매물이 없습니다");
     return Math.min.apply(Math, prices);
+  }
+  async function requestPriceJSON(url, body) {
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 15000);
+    try {
+      var response = await fetch(url, { method: "POST", headers: apiHeaders(), body: JSON.stringify(body), signal: controller.signal });
+      if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "API 키 또는 권한을 확인해주세요" : response.status === 429 ? "요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요" : "시세 서버 응답 오류 (" + response.status + ")");
+      return await response.json();
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error("응답 시간이 초과됐습니다. 잠시 후 다시 시도해주세요");
+      throw error;
+    } finally { clearTimeout(timeout); }
   }
   var itemEdit = null, itemUndo = null, itemNotice = "", neededOpen = true, planOpen = false, planDraft = {};
   function updatePlan() {
@@ -854,7 +856,7 @@
       return;
     }
     var intervalMs = state.itemPriceUpdateInterval * 60000;
-    if (!force && state.itemPriceLastUpdated && Date.now() - state.itemPriceLastUpdated < intervalMs) return;
+    if (!force && state.itemPriceLastAttempt && Date.now() - state.itemPriceLastAttempt < intervalMs) return;
     var targets = state.items.filter(autoItem);
     if (!targets.length) {
       if (force) { itemNotice = "자동 시세로 설정된 아이템이 없습니다. 직접 입력 가격은 유지됩니다."; render(); }
@@ -882,6 +884,8 @@
       else { current.price = result.value; current.priceUpdatedAt = Date.now(); current.priceError = ""; success++; }
     });
     state.itemPriceLastUpdated = Date.now();
+    state.itemPriceLastAttempt = state.itemPriceLastUpdated;
+    if (success > 0) state.itemPriceLastSuccess = state.itemPriceLastUpdated;
     state.itemPriceError = failed ? (success ? "일부 갱신 실패" : "가격 갱신 실패") : "";
     itemNotice = failed ? state.itemPriceError + " · 아이템별 상태를 확인해주세요." : (success ? success + "개 아이템 가격 갱신 완료" : "편집 중이거나 직접 입력으로 전환한 가격은 유지했습니다.");
     saveItems(); saveSettings();
@@ -893,6 +897,10 @@
     var d = new Date(ts);
     if (isNaN(d.getTime())) return "아직 가격 갱신 기록 없음";
     return "마지막 갱신 " + (d.getMonth()+1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+  }
+  function priceUpdateSummary() {
+    var failures = state.items.filter(function (it) { return autoItem(it) && it.priceError; }).length;
+    return (state.itemPriceLastSuccess ? formatPriceUpdatedAt(state.itemPriceLastSuccess).replace("마지막 갱신", "마지막 성공(일부 포함)") : "성공한 시세 갱신 기록 없음") + " · " + (state.itemPriceLastAttempt ? formatPriceUpdatedAt(state.itemPriceLastAttempt).replace("마지막 갱신", "마지막 시도") : "시도 기록 없음") + (failures ? " · 이전 가격 사용 " + failures + "개" : "");
   }
 
   function ensureCurrentWeek() {
@@ -993,6 +1001,8 @@
     state.itemPriceApiKey = settings.itemPriceApiKey || "";
     state.itemPriceUpdateInterval = Number(settings.itemPriceUpdateInterval) === 30 ? 30 : 60;
     state.itemPriceLastUpdated = Number(settings.itemPriceLastUpdated) || 0;
+    state.itemPriceLastAttempt = Number(settings.itemPriceLastAttempt || settings.itemPriceLastUpdated) || 0;
+    state.itemPriceLastSuccess = Number(settings.itemPriceLastSuccess) || 0;
     ensureCurrentWeek();
     loadHistory();
     state.items = loadItems();
@@ -1006,7 +1016,7 @@
     }
   }
   function saveSettings(skipSheetSync) {
-    lsSet("settings", { baseTarget: state.baseTarget, itemTarget: state.itemTarget, exchangeRate: state.exchangeRate, saleFeePercent: state.saleFeePercent, cardBill: state.cardBill, cashOnHand: state.cashOnHand, sheetUrl: state.sheetUrl, lastSheetSyncAt: state.lastSheetSyncAt, itemPriceApiKey: state.itemPriceApiKey, itemPriceUpdateInterval: state.itemPriceUpdateInterval, itemPriceLastUpdated: state.itemPriceLastUpdated });
+    lsSet("settings", { baseTarget: state.baseTarget, itemTarget: state.itemTarget, exchangeRate: state.exchangeRate, saleFeePercent: state.saleFeePercent, cardBill: state.cardBill, cashOnHand: state.cashOnHand, sheetUrl: state.sheetUrl, lastSheetSyncAt: state.lastSheetSyncAt, itemPriceApiKey: state.itemPriceApiKey, itemPriceUpdateInterval: state.itemPriceUpdateInterval, itemPriceLastUpdated: state.itemPriceLastUpdated, itemPriceLastAttempt: state.itemPriceLastAttempt, itemPriceLastSuccess: state.itemPriceLastSuccess });
     if (!skipSheetSync) scheduleSheetSync();
   }
 
@@ -1042,7 +1052,8 @@
       sheetUrl: state.sheetUrl,
       lastSheetSyncAt: state.lastSheetSyncAt,
       itemPriceUpdateInterval: state.itemPriceUpdateInterval,
-      itemPriceLastUpdated: state.itemPriceLastUpdated
+      itemPriceLastUpdated: state.itemPriceLastUpdated,
+      itemPriceLastAttempt: state.itemPriceLastAttempt, itemPriceLastSuccess: state.itemPriceLastSuccess
     };
     out.settings = settingsBackup;
     return out;
@@ -1070,7 +1081,7 @@
       out[key] = w; weeks++; entries += w.entries.length;
     });
     out.settings = Object.assign({}, lsGet("settings") || {});
-    ["baseTarget", "itemTarget", "exchangeRate", "cardBill", "cashOnHand", "itemPriceUpdateInterval", "itemPriceLastUpdated", "saleFeePercent"].forEach(function (key) {
+    ["baseTarget", "itemTarget", "exchangeRate", "cardBill", "cashOnHand", "itemPriceUpdateInterval", "itemPriceLastUpdated", "itemPriceLastAttempt", "itemPriceLastSuccess", "saleFeePercent"].forEach(function (key) {
       if (obj.settings[key] == null) return;
       if (key === "saleFeePercent" ? !(Number.isFinite(obj.settings[key]) && obj.settings[key] >= 0 && obj.settings[key] < 100) : !number(obj.settings[key], false)) fail();
       if (key === "exchangeRate" && obj.settings[key] <= 0) fail();
@@ -1749,7 +1760,7 @@ var dashboardPortraits = [];
     html += '<div class="calc-assumption"><button class="calc-link" onclick="__gl.openRateModal()">1만 골드 = ' + fmtNum(state.exchangeRate) + '원 · 환율 수정</button><span>수수료 추정 ' + calcControl("", "fee", state.saleFeePercent, "수수료 비율 (%)") + '%</span><span>' + (state.saleFeePercent > 0 ? '현금 환산·목표에 차감 반영 · 차감 전 ' + fmtItemWon(goldToWon(total)) : '수수료 차감 전') + ' · 골드 총액은 차감 전</span></div><p class="ar-formnote">수수료는 직접 설정하는 일괄 추정치입니다. 거래별 반올림·최소 수수료는 반영하지 않으며 실제 수익과 다를 수 있습니다.</p>';
     html += '<div class="calc-goal"><span>목표 ' + calcControl("", "target", target, "목표 금액 (원)") + '원</span><span>' + (target > 0 ? '목표 대비 예상 가치 <b>' + percentage.toFixed(1) + '%</b>' : '목표 금액을 설정해주세요') + '</span><strong class="' + (complete ? 'calc-success' : '') + '">' + (target > 0 ? (complete ? '목표 가치 확보' : '목표까지 ' + fmtItemWon(remaining) + ' 부족') : '') + '</strong></div>';
     html += '<div class="calc-track" role="progressbar" aria-label="목표 대비 예상 가치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.min(100, percentage) + '"><div style="width:' + Math.min(100, percentage) + '%"></div></div></div>';
-    html += '<div class="calc-toolbar"><div><h3>보유 아이템 <span>' + state.items.length + '</span></h3><p>' + (state.itemPriceUpdating ? '가격 갱신 중…' : esc(formatPriceUpdatedAt(state.itemPriceLastUpdated))) + '</p></div><button class="data-btn" onclick="__gl.refreshItemPrices()" ' + (state.itemPriceUpdating ? 'disabled' : '') + '>지금 갱신</button></div>';
+    html += '<div class="calc-toolbar"><div><h3>보유 아이템 <span>' + state.items.length + '</span></h3><p>' + (state.itemPriceUpdating ? '가격 갱신 중…' : esc(priceUpdateSummary())) + '</p></div><button class="data-btn" onclick="__gl.refreshItemPrices()" ' + (state.itemPriceUpdating ? 'disabled' : '') + '>지금 갱신</button></div>';
     html += '<div class="calc-notice"><span>자동 시세 ' + state.items.filter(autoItem).length + '개 · 직접 입력 ' + state.items.filter(function (it) { return !autoItem(it); }).length + '개 — 직접 입력 가격은 갱신하지 않습니다.</span>' + (!state.itemPriceApiKey ? '<button class="calc-link" onclick="__gl.openDataModal()">API 연결하기</button>' : '') + '</div>';
     html += '<div class="calc-notice" role="status">' + esc(itemNotice || '금액과 수량을 눌러 수정 · Enter 저장 / Esc 취소') + (itemUndo ? '<button class="calc-link" onclick="__gl.undoCalc()">실행 취소</button>' : '') + '</div>';
     html += '<div class="calc-columns"><span>아이템</span><span>개당 가격 (G)</span><span>보유 수량</span><span>합계 (G)</span><span></span></div>';

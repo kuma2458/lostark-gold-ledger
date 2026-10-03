@@ -46,4 +46,25 @@ test(2,'이번 주 목표 선택 적용',()=>use(async p=>{await sale(p,10);awai
 test(2,'카드값 Esc 취소',()=>use(async p=>{await p.evaluate(()=>__gl.startEditCardBill());await p.locator('#card-bill-input').fill('999');await p.locator('#card-bill-input').press('Escape');assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_settings')).cardBill),0)}));
 test(2,'현금 키보드 편집',()=>use(async p=>{const b=p.getByRole('button',{name:'현금 수정',exact:true});assert.equal(await b.count(),1);await b.focus();await p.keyboard.press('Enter');assert.equal(await p.locator('#cash-input').count(),1)}));
 test(2,'판매 계정 유지',()=>use(async p=>{await p.locator('#entry-account').selectOption('a2');await sale(p,10);assert.equal(await p.locator('#entry-account').inputValue(),'a2')}));
+async function priceSetup(p,mode='success') {
+ await p.evaluate(()=>{const s=JSON.parse(localStorage.getItem('lag_settings'));s.itemPriceApiKey='test-only';localStorage.setItem('lag_settings',JSON.stringify(s))});await p.reload();
+ await p.evaluate(mode=>{__gl.setView('items');window.fetch=async(url,options)=>{
+  if(mode==='fail')throw Error('mock offline');if(mode==='401')return {ok:false,status:401};
+  if(mode==='timeout'){const timer=window.setTimeout;window.setTimeout=(fn,ms,...args)=>timer(fn,ms===15000?1:ms,...args);return new Promise((_,reject)=>options.signal?.addEventListener('abort',()=>reject(new DOMException('timeout','AbortError'))));}
+  if(mode==='partial'&&url.includes('auctions'))throw Error('mock partial');
+  return {ok:true,json:async()=>url.includes('auctions')?{Items:[{AuctionInfo:{BuyPrice:320000}}]}:{Items:[{Name:'상급 아비도스 융화 재료',CurrentMinPrice:300,BundleCount:1}]}};
+ };},mode);
+ await p.evaluate(()=>__gl.setPriceMode('i1','auto'));await p.evaluate(()=>__gl.setPriceMode('i2','auto'));
+}
+async function refreshPrices(p){await p.getByRole('button',{name:'지금 갱신',exact:true}).click();await p.waitForFunction(()=>!document.querySelector('.calc-toolbar button').disabled,{},{timeout:18000});}
+test(3,'API 미연결 안내',()=>use(async p=>{await p.evaluate(()=>__gl.setView('items'));assert.equal(await p.getByRole('button',{name:'API 연결하기'}).count(),1)}));
+test(3,'수동 가격 갱신 제외',()=>use(async p=>{await p.evaluate(()=>__gl.setView('items'));await refreshPrices(p);assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_items'))[0].price),243)}));
+test(3,'모두 실패한 성공 시각',()=>use(async p=>{await priceSetup(p,'fail');await refreshPrices(p);const s=await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_settings')));assert.ok(s.itemPriceLastAttempt>0);assert.equal(s.itemPriceLastSuccess||0,0);assert.match(await p.locator('.calc-toolbar').innerText(),/성공.*없음/)}));
+test(3,'정상 시세 성공 시각',()=>use(async p=>{await priceSetup(p);await refreshPrices(p);assert.ok(await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_settings')).itemPriceLastSuccess>0))}));
+test(3,'부분 실패 가격 유지',()=>use(async p=>{await priceSetup(p,'partial');await refreshPrices(p);assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_items'))[1].price),315998)}));
+test(3,'인증 만료 안내',()=>use(async p=>{await priceSetup(p,'401');await refreshPrices(p);assert.match(await p.locator('.calc-error').first().innerText(),/API 키|권한/)}));
+test(3,'응답 지연 시간 제한',()=>use(async p=>{await priceSetup(p,'timeout');await p.evaluate(()=>{const timer=window.setTimeout;window.setTimeout=(fn,ms,...args)=>timer(fn,ms===15000?1:ms,...args)});await refreshPrices(p);assert.match(await p.locator('.calc-error').first().innerText(),/시간|지연/)}));
+test(3,'실패 상태 새로고침 유지',()=>use(async p=>{await priceSetup(p,'fail');await refreshPrices(p);await p.reload();await p.evaluate(()=>__gl.setView('items'));assert.match(await p.locator('.calc-toolbar').innerText(),/이전 가격/)}));
+test(3,'소수 수수료 저장',()=>use(async p=>{await p.evaluate(()=>__gl.setView('items'));await p.locator('.calc-value[data-field="fee"]').click();await p.locator('#calc-editor').fill('2.5');await p.evaluate(()=>__gl.commitCalc(document.querySelector('#calc-editor')));assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_settings')).saleFeePercent),2.5)}));
+test(3,'계획 입력 실제 수량 유지',()=>use(async p=>{await p.evaluate(()=>__gl.setView('items'));await p.locator('.calc-plan summary').click();await p.locator('.plan-qty').first().fill('1000');assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('lag_items'))[0].qty),8900)}));
 (async()=>{browser=await chromium.launch({headless:true,...(process.env.LEDGER_BROWSER?{executablePath:process.env.LEDGER_BROWSER}:{})});const results=[];try{for(let r=1;r<=round;r++){for(const t of groups[r-1]){try{await t.fn();results.push({round:r,name:t.name,pass:true})}catch(e){results.push({round:r,name:t.name,pass:false,detail:e.message.slice(0,450)})}}}console.log(JSON.stringify({results},null,2));if(strict&&results.some(x=>!x.pass))process.exitCode=1;}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
