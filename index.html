@@ -450,6 +450,8 @@
   .calc-plan input{width:110px;max-width:40%;min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:right;font:inherit}
   .calc-plan output{display:block;padding:14px;background:var(--panel);border-radius:6px;color:var(--gold);line-height:1.7;font-size:14px}
   button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  button.stat-value,button.entry-amount{background:transparent;border:0;padding:0;text-align:left;font-family:inherit;cursor:pointer}
+  button.pencil,button.chip-del{background:transparent;border:0;font:inherit;min-width:28px;min-height:32px;cursor:pointer}
   @media(max-width:700px){.calc-row{grid-template-columns:1fr 1fr 44px!important}.calc-value,.calc-link,.data-btn,.view-tab,.filter-btn{min-height:44px}.calc-assumption{align-items:flex-start}.calc-assumption>span{line-height:1.7}.calc-plan label>span{min-width:0;overflow-wrap:anywhere}}
   @media(max-width:900px){.calc-columns,.calc-row{grid-template-columns:minmax(140px,1fr) 110px 100px 120px 32px;gap:8px}.calc-totals{gap:20px}.calc-totals>div+div{padding-left:20px}.calc-totals strong{font-size:26px}}
   @media(max-width:700px){.dashboard-theme .calc-panel{padding:16px}.calc-summary{padding:18px}.calc-columns{display:none}.calc-row{grid-template-columns:1fr 1fr 36px;gap:14px}.calc-name{grid-column:1/3}.calc-delete{grid-column:3;grid-row:1}.calc-row .calc-cell{grid-row:2;text-align:left}.calc-row .calc-subtotal{grid-row:3;grid-column:1/4;display:flex;justify-content:space-between}.calc-cell:before{content:attr(data-label);display:block;font-size:12px;color:#aab5c5;margin-bottom:5px}.calc-row{position:relative}.calc-row .calc-delete{grid-row:1;align-self:start}.calc-totals{flex-direction:column;gap:12px}.calc-totals>div+div{border:0;padding:0}.calc-goal{gap:10px}.calc-goal>strong{margin-left:0;width:100%}.calc-needed{padding:16px}.calc-needed-row{align-items:flex-start;flex-wrap:wrap;gap:8px}.calc-needed-row strong{margin-left:auto}.calc-toolbar{margin-top:22px}.calc-notice{flex-wrap:wrap}}
@@ -1245,10 +1247,13 @@
       var v = parseGoldInput(el ? el.value : "", false);
       if (v === null) { el.setCustomValidity("0 이상의 목표를 만 단위로 입력해주세요."); el.reportValidity(); return; }
       var firstGoal = state.weekTarget === 0 && totalSold(state.entries) === 0;
+      var applyCurrent = document.getElementById("base-apply-current");
       state.baseTarget = v;
       state.baseModalOpen = false;
       saveSettings();
-      if (firstGoal) { state.weekTarget = v; saveCurrentWeek(); }
+      if (firstGoal || (applyCurrent && applyCurrent.checked)) { state.weekTarget = v + totalSold(state.entries); saveCurrentWeek(); }
+      ledgerNotice = "기본 목표를 저장했습니다. 다음 주부터 적용됩니다.";
+      if (firstGoal || (applyCurrent && applyCurrent.checked)) ledgerNotice = "기본 목표와 이번 주 남은 목표를 함께 변경했습니다. 판매 내역은 유지됩니다.";
       render();
     },
     openRateModal: function () {
@@ -1453,8 +1458,11 @@
       if (el) { el.focus(); el.select(); }
     },
     commitRename: function (id) {
+      if (state.renamingId !== id) return;
       var el = document.getElementById("rename-input");
       var name = el ? el.value.trim() : "";
+      if (!el) return;
+      if (!name || name.length > 100) { el.setCustomValidity("계정 이름은 1~100자로 입력해주세요."); el.reportValidity(); return; }
       state.renamingId = null;
       if (name) {
         state.accounts = state.accounts.map(function (a) {
@@ -1575,6 +1583,8 @@
     setView: function (v) {
       state.view = v;
       render();
+      var tab = document.querySelector('.view-tab[aria-pressed="true"]');
+      if (tab) tab.focus({ preventScroll: true });
     },
     addItem: function () {
       var item = { id: "it" + Date.now(), name: "새 아이템", price: 0, qty: 0, priceMode: "manual" };
@@ -1666,6 +1676,7 @@
       if (evt.key === "Escape") {
         evt.preventDefault();
         state.editingTarget = false; state.editingEntryId = null; state.editingCardBill = false; state.editingCash = false;
+        state.renamingId = null;
         state.baseModalOpen = false; state.rateModalOpen = false; render();
       }
     }
@@ -1857,15 +1868,15 @@ var dashboardPortraits = [];
       state.accounts.forEach(function (a) {
         if (state.renamingId === a.id) {
           html += '<div class="chip active">' +
-            '<input id="rename-input" class="rename-input" value="' + esc(a.name) + '" ' +
+            '<input id="rename-input" class="rename-input" maxlength="100" aria-label="계정 이름" oninput="this.setCustomValidity(\'\')" value="' + esc(a.name) + '" ' +
             'onkeydown="__gl.keyEnter(event, function(){__gl.commitRename(\'' + a.id + '\')})" ' +
             'onblur="__gl.commitRename(\'' + a.id + '\')" />' +
             '</div>';
         } else {
           html += '<div class="chip' + (state.filterAccount === a.id ? " active" : "") + '" onclick="__gl.setFilter(\'' + a.id + '\')" title="더블클릭 또는 ✎ 로 이름 변경">' +
             esc(a.name) +
-            '<span class="pencil" onclick="__gl.startRename(\'' + a.id + '\', event)" ondblclick="event.stopPropagation()">✎</span>' +
-            '<span class="chip-del" onclick="__gl.deleteAccount(\'' + a.id + '\', event)" title="계정 삭제">×</span>' +
+            '<button type="button" class="pencil" aria-label="' + esc(a.name) + ' 이름 변경" onclick="__gl.startRename(\'' + a.id + '\', event)">✎</button>' +
+            '<button type="button" class="chip-del" aria-label="' + esc(a.name) + ' 계정 삭제" onclick="__gl.deleteAccount(\'' + a.id + '\', event)" title="계정 삭제">×</button>' +
             '</div>';
         }
       });
@@ -1876,7 +1887,7 @@ var dashboardPortraits = [];
       if (state.design === "dashboard") html += '</details>';
       if (state.baseModalOpen) {
         html += '<div class="overlay" onclick="__gl.closeBaseModal()"><div class="modal" onclick="event.stopPropagation()">';
-        html += '<div class="modal-title">매주 기본 목표금액 (4계정 합산, 만 단위)</div>';
+        html += '<div class="modal-title">매주 기본 목표 (전체 계정 합산, 만 단위)</div><p class="ar-formnote">변경한 기본 목표는 다음 주부터 적용합니다. 목표를 처음 설정할 때는 이번 주에도 적용합니다.</p><label class="ar-formnote"><input id="base-apply-current" type="checkbox"> 이번 주 남은 목표도 입력한 금액으로 설정 (기존 판매 내역 유지)</label>';
         html += '<input id="base-input" class="modal-input" value="' + manValueForInput(state.baseTarget) + '" inputmode="decimal" ' +
           'onkeydown="__gl.keyEnter(event, __gl.saveBase)" />';
         html += '<div class="modal-row"><button class="ghost-btn" onclick="__gl.closeBaseModal()">취소</button>' +
@@ -1954,7 +1965,7 @@ var dashboardPortraits = [];
         html += '<input id="card-bill-input" class="inline-input" value="' + state.cardBill + '" inputmode="numeric" ' +
           'onblur="__gl.commitCardBill()" onkeydown="__gl.keyEnter(event, __gl.commitCardBill)" />';
       } else {
-        html += '<div class="stat-value" title="클릭해서 수정" onclick="__gl.startEditCardBill()">' + fmtWon(state.cardBill) + '</div>';
+        html += '<button type="button" class="stat-value" aria-label="카드값 수정" onclick="__gl.startEditCardBill()">' + fmtWon(state.cardBill) + '</button>';
       }
       html += '</div>';
       html += '<div class="stat-box"><div class="stat-label">현금 (원)</div>';
@@ -1962,7 +1973,7 @@ var dashboardPortraits = [];
         html += '<input id="cash-input" class="inline-input" value="' + state.cashOnHand + '" inputmode="numeric" ' +
           'onblur="__gl.commitCash()" onkeydown="__gl.keyEnter(event, __gl.commitCash)" />';
       } else {
-        html += '<div class="stat-value" title="클릭해서 수정" onclick="__gl.startEditCash()">' + fmtWon(state.cashOnHand) + '</div>';
+        html += '<button type="button" class="stat-value" aria-label="현금 수정" onclick="__gl.startEditCash()">' + fmtWon(state.cashOnHand) + '</button>';
       }
       html += '</div>';
       html += '<div class="stat-box"><div class="stat-label">' + (remainingWon > 0 ? "남은금액" : "여유자금") + '</div>' +
