@@ -29,6 +29,7 @@ scripts.forEach((match, i) => {
   try { new Function(match[1]); } catch (e) { errors.push('Script ' + i + ': ' + e.message); }
 });
 const allowed = new Set(['.gitignore', '.gitattributes', 'index.html', 'README.md', 'CHANGELOG.md', 'VERSION', 'scripts/check-release.cjs', 'scripts/verify-live.cjs', 'scripts/test-ledger.cjs', 'scripts/test-review-cycles.cjs', 'REVIEW-CYCLES.md', 'REVIEW-50.md', '.github/workflows/pages.yml']);
+allowed.add('scripts/test-trust.cjs');
 try {
   cp.execFileSync('git', ['ls-files', '-z'], {cwd:root, encoding:'utf8'}).split('\0').filter(Boolean)
     .forEach(file => check(allowed.has(file), 'Unexpected tracked file: ' + file));

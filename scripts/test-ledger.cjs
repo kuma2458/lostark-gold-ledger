@@ -21,6 +21,19 @@ async function sale(p, amount) {
   await p.locator('#entry-amount').fill(String(amount));
   await p.evaluate(() => __gl.addEntry());
 }
+async function exportedText(p, method) {
+  // Install for each export: page reload/import discards browser globals.
+  return p.evaluate(async method => {
+    const original = URL.createObjectURL;
+    let captured;
+    URL.createObjectURL = blob => { captured = blob; return original(blob); };
+    try {
+      await __gl[method]();
+      if (!captured) throw Error('Export did not produce a file: ' + method);
+      return await captured.text();
+    } finally { URL.createObjectURL = original; }
+  }, method);
+}
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.LEDGER_BROWSER ? { executablePath: process.env.LEDGER_BROWSER } : {}) });
   try {
@@ -215,6 +228,56 @@ async function sale(p, amount) {
     const expectedVersion = fs.readFileSync(path.join(__dirname, '../VERSION'), 'utf8').trim();
     for (const view of ['ledger', 'items']) { await p.evaluate(v => __gl.setView(v), view); assert.equal(await p.locator('.app-version').textContent(), '골드 장부 · v' + expectedVersion); }
     passes.push('release: decimal price and synthetic portrait backup roundtrip, shared footer version on both tabs');
+    // Trust fees are expenses, never additional sales / target reductions.
+    await seed(p);
+    await p.locator('#sale-trust-mode').selectOption('zero');
+    await p.locator('#entry-amount').fill('10');
+    assert.match(await p.locator('#sale-preview').innerText(), /25,000 G.*125,000 G/);
+    await p.evaluate(() => __gl.addEntry());
+    assert.equal((await week(p)).entries[0].trustFee,25000);
+    assert.match(await p.locator('.ar-account').first().innerText(), /17.5/);
+    assert.match(await exportedText(p, 'exportCSV'), /1400000,975000/);
+    let trustId=(await week(p)).entries[0].id;
+    await p.evaluate(id=>__gl.startEditEntry(id),trustId);
+    await p.locator('#entry-edit-input').fill('20');
+    await p.evaluate(id=>__gl.commitEditEntry(id),trustId);
+    assert.equal((await week(p)).entries[0].trustFee,50000);
+    await p.evaluate(()=>__gl.undoLedger());
+    assert.equal((await week(p)).entries[0].trustFee,25000);
+    await p.reload();
+    assert.equal((await week(p)).entries[0].trustFee,25000);
+    await p.evaluate(id=>__gl.deleteEntry(id),trustId);
+    assert.equal((await week(p)).entries.length,0);
+    await p.locator('#sale-trust-mode').selectOption('zero');
+    await sale(p,25); // 312,500 required, only 300,000 held.
+    assert.equal((await week(p)).entries.length,0);
+    await p.locator('#sale-trust-mode').selectOption('partial');
+    await p.locator('#sale-trust').fill('5');await sale(p,10);
+    assert.equal((await week(p)).entries[0].trustFee,12500);
+    assert.equal((await week(p)).entries[0].trustAvailable,50000);
+    await seed(p);
+    await p.locator('#sale-trust-mode').selectOption('partial');
+    await p.locator('#sale-trust').fill('20');await sale(p,10);
+    assert.equal((await week(p)).entries[0].trustFee,0);
+    await seed(p);
+    await p.locator('#sale-trust-mode').selectOption('zero');
+    await sale(p,'0.0001');assert.equal((await week(p)).entries[0].trustFee,1);
+    await seed(p);
+    await p.locator('.ar-form details summary').click();
+    await p.locator('#sale-fee').fill('-1');await sale(p,10);
+    assert.equal((await week(p)).entries.length,0);
+    await p.locator('#sale-fee').fill('123');await sale(p,10);
+    assert.equal((await week(p)).entries[0].trustFee,123);
+    const trustBackup=JSON.parse(await exportedText(p, 'exportJSON'));
+    await Promise.all([p.waitForEvent('load'), upload(trustBackup)]);
+    assert.equal((await week(p)).entries[0].trustFee,123);
+    const bk=Object.keys(trustBackup).find(k=>k.startsWith('week_'));
+    trustBackup[bk].entries[0].trustFee=-123;await upload(trustBackup);
+    await p.waitForFunction(()=>document.querySelector('.error-bar')?.textContent.includes('형식'));
+    assert.equal((await week(p)).entries[0].trustFee,123);
+    await p.setViewportSize({width:390,height:950});
+    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    passes.push('trust fees: zero/partial/sufficient, preview, balances vs target, fee-inclusive oversell, edit/undo/delete/reload, manual fee, rounding estimate, backup validation, mobile');
     if (process.env.LEDGER_SCREENSHOT_DIR) {
       await seed(p);
       for (const view of ['ledger', 'items']) {

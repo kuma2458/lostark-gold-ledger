@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.2.0">
+<meta name="application-version" content="1.3.0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -564,6 +564,8 @@
   // ---------- localStorage ----------
   var storageReady = false, storageSnapshot = "", storageNotice = "", storageReadError = "";
   var ledgerUndo = [], ledgerNotice = "", saleAccount = "", saleDraft = "";
+  var saleTrustMode = "enough", saleTrustDraft = "", saleFeeDraft = "";
+  var importMode = "merge";
   function storageFingerprint() {
     return JSON.stringify(Object.keys(localStorage).filter(function (k) { return k.indexOf(STORAGE_PREFIX) === 0; }).sort().map(function (k) { return [k, localStorage.getItem(k)]; }));
   }
@@ -675,18 +677,38 @@
   function totalSold(entries) {
     return (entries || []).reduce(function (s, e) { return s + (e.type === "sell" ? e.amount : 0); }, 0);
   }
+  function entryTrustFee(e) { return e.type === "sell" ? (e.trustFee || 0) : 0; }
+  function totalTrustFees(entries) { return (entries || []).reduce(function (s, e) { return s + entryTrustFee(e); }, 0); }
+  function estimatedTrustFee(amount, available) {
+    // Official rules specify 25% but not fractional-gold rounding. Estimate upward;
+    // the user can enter the exact in-game fee in whole gold.
+    return available == null ? 0 : Math.ceil(Math.max(0, amount - available) / 4);
+  }
+  function readSaleTrust(amount) {
+    var mode = document.getElementById("sale-trust-mode"), trust = document.getElementById("sale-trust"), fee = document.getElementById("sale-fee");
+    saleTrustMode = mode ? mode.value : "enough";
+    saleTrustDraft = trust ? trust.value : ""; saleFeeDraft = fee ? fee.value : "";
+    var available = saleTrustMode === "enough" ? null : saleTrustMode === "zero" ? 0 : parseGoldInput(saleTrustDraft, false);
+    if (saleTrustMode === "partial" && available === null) return null;
+    var manual = saleFeeDraft.trim() !== "", feeText = saleFeeDraft.trim().replace(/,/g, "");
+    if (manual && !/^\d+$/.test(feeText)) return null;
+    var cost = manual ? Number(feeText) : estimatedTrustFee(amount || 0, available);
+    if (!Number.isSafeInteger(cost) || cost < 0 || !Number.isSafeInteger((amount || 0) + cost)) return null;
+    return { trustAvailable: available, trustFee: cost, trustFeeManual: manual };
+  }
   function effectiveWeekTarget(target, entries) {
     return Math.max(0, (target || 0) - totalSold(entries));
   }
   function totalWeekEarned(carriedEarned, entries) {
-    return (carriedEarned || 0) + totalEarned(entries) - totalSold(entries);
+    return (carriedEarned || 0) + totalEarned(entries) - totalSold(entries) - totalTrustFees(entries);
   }
   function accountEarned(entries, accId) {
     return (entries || []).filter(function (e) { return e.accountId === accId; })
       .reduce(function (s, e) { return s + (e.type === "sell" ? 0 : e.amount); }, 0);
   }
   function totalAccountEarned(carriedByAccount, entries, accId) {
-    var sales = totalSold((entries || []).filter(function (e) { return e.accountId === accId; }));
+    var accountEntries = (entries || []).filter(function (e) { return e.accountId === accId; });
+    var sales = totalSold(accountEntries) + totalTrustFees(accountEntries);
     return ((carriedByAccount || {})[accId] || 0) + accountEarned(entries, accId) - sales;
   }
   function recordAccountBalance(accountId, balance) {
@@ -703,7 +725,7 @@
   function nextCarriedByAccount(carriedByAccount, entries) {
     var result = Object.assign({}, carriedByAccount || {});
     (entries || []).forEach(function (e) {
-      result[e.accountId] = (result[e.accountId] || 0) + (e.type === "sell" ? -e.amount : (e.amount || 0));
+      result[e.accountId] = (result[e.accountId] || 0) + (e.type === "sell" ? -e.amount - entryTrustFee(e) : (e.amount || 0));
     });
     return result;
   }
@@ -975,7 +997,9 @@
     if (!account || !input || !preview) return;
     saleAccount = account.value; saleDraft = input.value; input.setCustomValidity("");
     var amount = parseGoldInput(input.value, false), balance = totalAccountEarned(state.weekCarriedByAccount, state.entries, saleAccount);
-    preview.textContent = !input.value.trim() ? "선택 계정 보유 " + fmtGold(balance) + " · 만 골드 단위 입력" : amount === null || amount <= 0 ? "0보다 큰 금액을 입력해주세요." : amount > balance ? "보유액을 초과합니다. 판매 금액을 확인해주세요." : "판매 후 보유 " + fmtGold(balance - amount) + " · 남은 목표 " + fmtGold(Math.max(0, effectiveWeekTarget(state.weekTarget, state.entries) - amount));
+    var trust = readSaleTrust(amount), partial = document.getElementById("sale-trust-wrap");
+    if (partial) partial.hidden = saleTrustMode !== "partial";
+    preview.textContent = !input.value.trim() ? "선택 계정 보유 " + fmtGold(balance) + " · 만 골드 단위 입력" : amount === null || amount <= 0 ? "0보다 큰 금액을 입력해주세요." : !trust ? "신뢰도 또는 실제 수수료를 확인해주세요." : "신뢰도 수수료 " + fmtNum(trust.trustFee) + " G · 총 차감 " + fmtNum(amount + trust.trustFee) + " G · " + (amount + trust.trustFee > balance ? "수수료 포함 보유액이 부족합니다." : "판매 후 보유 " + fmtGold(balance - amount - trust.trustFee) + " · 남은 목표 " + fmtGold(Math.max(0, effectiveWeekTarget(state.weekTarget, state.entries) - amount)));
   }
   function accountNameById(id) {
     var found = state.accounts.filter(function (a) { return a.id === id; })[0];
@@ -1066,16 +1090,19 @@
     if (!plain(obj) || !Array.isArray(obj.accounts) || !obj.accounts.length || obj.accounts.length > 100 || !Array.isArray(obj.items) || !plain(obj.settings)) fail();
     if (!obj.accounts.every(function (a) { return plain(a) && id(a.id) && typeof a.name === "string" && a.name.length > 0 && a.name.length <= 200; }) || new Set(obj.accounts.map(function (a) { return a.id; })).size !== obj.accounts.length) fail();
     if (obj.items.length > 1000 || !obj.items.every(function (it) { return plain(it) && id(it.id) && typeof it.name === "string" && it.name.length <= 200 && Number.isFinite(it.price) && it.price >= 0 && it.price <= 1000000000000 && number(it.qty, false) && Number.isFinite(it.price * it.qty) && it.price * it.qty <= Number.MAX_SAFE_INTEGER; }) || new Set(obj.items.map(function (it) { return it.id; })).size !== obj.items.length) fail();
+    if (obj.items.reduce(function (sum, it) { return sum + it.price * it.qty; }, 0) > Number.MAX_SAFE_INTEGER) fail();
     var out = { accounts: obj.accounts, items: obj.items }, weeks = 0, entries = 0;
     function validWeek(w) {
       if (!plain(w) || !number(w.target, false) || !Array.isArray(w.entries) || w.entries.length > 100000) return false;
       if (w.carriedEarned != null && !number(w.carriedEarned, true)) return false;
       if (w.carriedByAccount != null && (!plain(w.carriedByAccount) || !Object.keys(w.carriedByAccount).every(function (key) { return id(key) && number(w.carriedByAccount[key], true); }))) return false;
-      return w.entries.every(function (e) { return plain(e) && id(e.id) && id(e.accountId) && (e.type === "sell" || e.type === "earn") && number(e.amount, e.type === "earn") && typeof e.date === "string" && Number.isFinite(Date.parse(e.date)); });
+      if (!w.entries.every(function (e) { return plain(e) && id(e.id) && id(e.accountId) && (e.type === "sell" || e.type === "earn") && number(e.amount, e.type === "earn") && typeof e.date === "string" && Number.isFinite(Date.parse(e.date)); })) return false;
+      if (!w.entries.every(function (e) { return (e.trustFee == null || (e.type === "sell" && number(e.trustFee, false) && Number.isSafeInteger(e.amount + e.trustFee))) && (e.trustAvailable == null || number(e.trustAvailable, false)) && (e.trustFeeManual == null || typeof e.trustFeeManual === "boolean"); })) return false;
+      return new Set(w.entries.map(function (e) { return e.id; })).size === w.entries.length && Number.isSafeInteger(totalWeekEarned(w.carriedEarned, w.entries)) && Number.isSafeInteger(totalSold(w.entries));
     }
     Object.keys(obj).forEach(function (key) {
       if (key.indexOf("week_") !== 0) return;
-      if (!/^week_\d{4}-\d{2}-\d{2}$/.test(key) || !Number.isFinite(Date.parse(key.slice(5))) || !validWeek(obj[key])) fail();
+      if (!/^week_\d{4}-\d{2}-\d{2}$/.test(key) || !Number.isFinite(Date.parse(key.slice(5))) || new Date(key.slice(5)).toISOString().slice(0, 10) !== key.slice(5) || !validWeek(obj[key])) fail();
       var w = Object.assign({}, obj[key]);
       if (w.undo && (!Array.isArray(w.undo) || w.undo.length > 5 || !w.undo.every(validWeek))) fail();
       out[key] = w; weeks++; entries += w.entries.length;
@@ -1095,12 +1122,41 @@
     }
     return { data: out, weeks: weeks, entries: entries };
   }
-  function writeBatch(data) {
+  function prepareImport(pack) {
+    var data = pack.data, removals = [];
+    var missing = state.accounts.filter(function (a) { return !data.accounts.some(function (b) { return a.id === b.id; }); });
+    if (importMode === "merge") {
+      data.accounts = data.accounts.concat(missing);
+      data.items = data.items.concat(state.items.filter(function (it) { return !data.items.some(function (other) { return other.id === it.id; }); }));
+      if (data.accounts.length > 100 || data.items.length > 1000 || data.items.reduce(function (sum, it) { return sum + it.price * it.qty; }, 0) > Number.MAX_SAFE_INTEGER) throw new Error("합친 데이터의 개수 또는 총액이 지원 범위를 초과합니다.");
+      if (data.portraitImages) {
+        var images = (lsGet("portraitImages") || []).slice(), bindings = Object.assign({}, lsGet("portraitBindings") || {});
+        Object.keys(data.portraitBindings).forEach(function (id) {
+          var image = data.portraitImages[data.portraitBindings[id]], index = images.indexOf(image);
+          if (index < 0) { index = images.length; images.push(image); }
+          bindings[id] = index;
+        });
+        if (images.length > 20) throw new Error("합친 캐릭터 사진이 20개를 초과합니다. 전체 복원 여부를 확인해주세요.");
+        data.portraitImages = images; data.portraitBindings = bindings;
+      }
+    } else {
+      Object.keys(localStorage).filter(function (k) { return k.indexOf(STORAGE_PREFIX + "week_") === 0; }).forEach(function (k) { var key = k.slice(STORAGE_PREFIX.length); if (!Object.prototype.hasOwnProperty.call(data, key)) removals.push(key); });
+      if (!data.portraitImages) { data.portraitImages = []; data.portraitBindings = {}; }
+    }
+    return { data: data, removals: removals, notice: importMode === "merge" ? "합치기: 파일에 없는 기존 계정 " + missing.length + "개·아이템·주차·사진은 유지합니다. 겹치는 ID의 데이터와 설정은 덮어씁니다." : "전체 복원: 파일에 없는 기존 주차 " + removals.length + "개를 삭제하고 계정·아이템·사진을 파일 기준으로 교체합니다." };
+  }
+  function writeBatch(data, removals) {
+    removals = removals || [];
     var previous = {};
-    Object.keys(data).forEach(function (key) { previous[key] = localStorage.getItem(STORAGE_PREFIX + key); });
-    try { Object.keys(data).forEach(function (key) { lsSet(key, data[key]); }); }
+    var changed = [];
+    Object.keys(data).concat(removals).forEach(function (key) { previous[key] = localStorage.getItem(STORAGE_PREFIX + key); });
+    try {
+      Object.keys(data).forEach(function (key) { lsSet(key, data[key]); changed.push(key); });
+      removals.forEach(function (key) { localStorage.removeItem(STORAGE_PREFIX + key); changed.push(key); });
+      storageSnapshot = storageFingerprint();
+    }
     catch (error) {
-      Object.keys(previous).forEach(function (key) {
+      changed.sort(function (a, b) { return ((previous[a] || "").length - (localStorage.getItem(STORAGE_PREFIX + a) || "").length) - ((previous[b] || "").length - (localStorage.getItem(STORAGE_PREFIX + b) || "").length); }).forEach(function (key) {
         if (previous[key] === null) localStorage.removeItem(STORAGE_PREFIX + key);
         else localStorage.setItem(STORAGE_PREFIX + key, previous[key]);
       });
@@ -1161,6 +1217,7 @@
           type: e.type === "sell" ? "판매" : e.balanceUpdate ? "보유액 수정" : "획득",
           amount: e.amount
         });
+        if (entryTrustFee(e)) rows.push({ weekStart: fmtKey(w.start), date: e.date, account: accountNameById(e.accountId) + " [" + e.accountId + "]", type: "신뢰도 수수료", amount: -entryTrustFee(e) });
       });
     });
     return rows;
@@ -1228,10 +1285,18 @@
 
   // ---------- 액션 ----------
   window.__gl = {
+    setImportMode: function (mode) { importMode = mode === "replace" ? "replace" : "merge"; },
     retryStorage: function () { storageReadError = ""; storageReady = false; safeInit(); },
     updatePlan: updatePlan,
     togglePlan: function (open) { planOpen = open; },
     updateSalePreview: updateSalePreview,
+    changeSaleAccount: function () {
+      saleTrustMode = "enough"; saleTrustDraft = ""; saleFeeDraft = "";
+      document.getElementById("sale-trust-mode").value = "enough";
+      document.getElementById("sale-trust").value = "";
+      document.getElementById("sale-fee").value = "";
+      updateSalePreview();
+    },
     previewBalance: function (el) {
       el.setCustomValidity("");
       var preview = document.getElementById("balance-preview"), amount = parseGoldInput(el.value, false);
@@ -1376,8 +1441,9 @@
         withStorageLock(function () {
         try {
           var pack = validatedBackup(JSON.parse(reader.result));
-          if (!confirm("가져오기 미리보기\n계정 " + pack.data.accounts.length + "개 · 아이템 " + pack.data.items.length + "개\n" + pack.weeks + "주차 · 내역 " + pack.entries + "건\n계정·아이템·설정 및 겹치는 주차를 덮어씁니다. 파일에 없는 주차와 사진은 유지됩니다.\nAPI 키·시트 연결은 이 브라우저의 설정을 유지합니다. 새 기기에서는 다시 연결해주세요.\n먼저 현재 기록을 백업하는 것을 권장합니다. 계속할까요?")) return;
-          writeBatch(pack.data);
+          var preview = prepareImport(pack);
+          if (!confirm("가져오기 미리보기\n계정 " + pack.data.accounts.length + "개 · 아이템 " + pack.data.items.length + "개\n" + pack.weeks + "주차 · 내역 " + pack.entries + "건\n" + preview.notice + "\n계정 이름이 같아도 ID가 다르면 서로 다른 계정입니다.\nAPI 키·시트 연결은 이 브라우저의 설정을 유지합니다. 새 기기에서는 다시 연결해주세요.\n먼저 현재 기록을 백업하는 것을 권장합니다. 계속할까요?")) return;
+          writeBatch(preview.data, preview.removals);
           location.reload();
         } catch (e) {
           state.error = e instanceof SyntaxError ? "올바른 JSON 백업 파일인지 확인해주세요. 기존 기록은 유지됩니다." : e.message;
@@ -1525,8 +1591,11 @@
       var amount = parseGoldInput(amtEl ? amtEl.value : "", false);
       var accountId = accEl ? accEl.value : state.accounts[0].id;
       var available = totalAccountEarned(state.weekCarriedByAccount, state.entries, accountId);
-      if (amount === null || amount <= 0 || amount > available) {
+      var trust = readSaleTrust(amount);
+      if (!trust) { if (amtEl) { amtEl.setCustomValidity("신뢰도(만 단위)와 실제 수수료(정수 골드)를 확인해주세요."); amtEl.reportValidity(); } return; }
+      if (amount === null || amount <= 0 || amount + trust.trustFee > available) {
         var message = amount === null || amount <= 0 ? "0보다 큰 숫자를 만 단위로 입력해주세요. 음수·문자·소수점 5자리 이상은 사용할 수 없습니다." : "선택 계정의 보유액 " + fmtGold(available) + "을 초과해 판매할 수 없습니다.";
+        if (amount > 0 && amount + trust.trustFee > available) message = "신뢰도 수수료 포함 " + fmtNum(amount + trust.trustFee) + " G가 필요합니다. 보유액 " + fmtNum(available) + " G를 확인해주세요.";
         if (amtEl) { amtEl.setCustomValidity(message); amtEl.reportValidity(); }
         return;
       }
@@ -1539,6 +1608,7 @@
       };
       state.error = "";
       var wasComplete = totalWeekEarned(state.weekCarriedEarned, state.entries) >= effectiveWeekTarget(state.weekTarget, state.entries);
+      Object.assign(entry, trust);
       state.entries = [entry].concat(state.entries);
       saveCurrentWeek();
       var nowComplete = totalWeekEarned(state.weekCarriedEarned, state.entries) >= effectiveWeekTarget(state.weekTarget, state.entries);
@@ -1548,6 +1618,7 @@
       }
       if (amtEl) amtEl.value = "";
       saleDraft = "";
+      saleTrustMode = "enough"; saleTrustDraft = ""; saleFeeDraft = "";
       render();
       var focusEl = document.getElementById("entry-amount");
       if (focusEl) focusEl.focus();
@@ -1568,20 +1639,23 @@
       var el = document.getElementById("entry-edit-input");
       if (el) { el.focus(); el.select(); }
     },
+    cancelEntryEdit: function () { state.editingEntryId = null; render(); },
     commitEditEntry: function (id) {
       var el = document.getElementById("entry-edit-input");
       var existing = state.entries.find(function (e) { return e.id === id; });
       var amount = parseGoldInput(el ? el.value : "", !!(existing && existing.balanceUpdate));
       if (!existing) return;
       var balance = totalAccountEarned(state.weekCarriedByAccount, state.entries, existing.accountId);
-      if (amount === null || (existing.type === "sell" && (amount <= 0 || amount > balance + existing.amount)) || (existing.type !== "sell" && balance - existing.amount + amount < Math.min(0, balance))) {
+      var feeEl = document.getElementById("entry-edit-fee"), feeText = feeEl ? feeEl.value.trim().replace(/,/g, "") : "";
+      var fee = existing.type === "sell" ? (feeText ? Number(feeText) : estimatedTrustFee(amount || 0, existing.trustAvailable)) : 0;
+      if (amount === null || (feeText && !/^\d+$/.test(feeText)) || !Number.isSafeInteger(fee) || !Number.isSafeInteger((amount || 0) + fee) || (existing.type === "sell" && (amount <= 0 || amount + fee > balance + existing.amount + entryTrustFee(existing))) || (existing.type !== "sell" && balance - existing.amount + amount < Math.min(0, balance))) {
         if (el) { el.setCustomValidity("올바른 금액을 입력해주세요. 판매는 0보다 크고 판매 전 보유액 이하여야 합니다."); el.reportValidity(); }
         return;
       }
       state.editingEntryId = null;
-      if (amount !== existing.amount) {
+      if (amount !== existing.amount || fee !== entryTrustFee(existing)) {
         state.entries = state.entries.map(function (e) {
-          return e.id === id ? Object.assign({}, e, { amount: amount }) : e;
+          return e.id === id ? Object.assign({}, e, { amount: amount }, existing.type === "sell" ? { trustFee: fee, trustFeeManual: !!feeText } : {}) : e;
         });
         saveCurrentWeek();
       }
@@ -1740,9 +1814,13 @@ var dashboardPortraits = [];
     var assigned = state.accounts.reduce(function (sum, a) { return sum + totalAccountEarned(state.weekCarriedByAccount, state.entries, a.id); }, 0);
     if (earned !== assigned) html += '<div class="ar-unassigned"><span>이월 조정 / 미배정</span><strong>' + fmtGold(earned - assigned) + '</strong></div>';
     html += '</div><div class="ar-ledgerfoot"><span>주 시작 이월</span><strong>' + fmtGold(state.weekCarriedEarned) + ' 골드</strong></div></section>';
-    html += '<aside class="ar-sale"><div class="ar-salehead"><h2>골드 판매 등록</h2></div><div class="ar-form"><label for="entry-account">판매 계정</label><select id="entry-account" onchange="__gl.updateSalePreview()">';
+    html += '<aside class="ar-sale"><div class="ar-salehead"><h2>골드 판매 등록</h2></div><div class="ar-form"><label for="entry-account">판매 계정</label><select id="entry-account" onchange="__gl.changeSaleAccount()">';
     state.accounts.forEach(function (a) { html += '<option value="' + esc(a.id) + '"' + (saleAccount === a.id ? ' selected' : '') + '>' + esc(a.name) + '</option>'; });
-    html += '</select><label for="entry-amount">판매 금액</label><div class="ar-inputbox"><input id="entry-amount" aria-label="판매 골드 (만 단위)" placeholder="0" value="' + esc(saleDraft) + '" inputmode="decimal" oninput="__gl.updateSalePreview()" onkeydown="__gl.keyEnter(event, __gl.addEntry)" /><span>만 골드</span></div><p id="sale-preview" class="ar-formnote" role="status"></p><button type="button" class="ar-submit" onclick="__gl.addEntry()">판매 등록</button></div><div class="ar-salesum"><span>이번 주 판매 합계</span><strong>' + fmtGold(totalSold(state.entries)) + ' 골드</strong></div></aside></div>';
+    html += '</select><label for="entry-amount">판매 금액 · 보내는 골드</label><div class="ar-inputbox"><input id="entry-amount" aria-label="판매 골드 (만 단위)" placeholder="0" value="' + esc(saleDraft) + '" inputmode="decimal" oninput="__gl.updateSalePreview()" onkeydown="__gl.keyEnter(event, __gl.addEntry)" /><span>만 골드</span></div>';
+    html += '<label for="sale-trust-mode">이번 거래의 신뢰도</label><select id="sale-trust-mode" onchange="__gl.updateSalePreview()">' + [['enough','충분함 · 추가 수수료 없음'],['zero','없음 · 25% 추가 차감'],['partial','일부 보유 · 부족분만 25%']].map(function (m) { return '<option value="' + m[0] + '"' + (saleTrustMode === m[0] ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('') + '</select>';
+    html += '<div id="sale-trust-wrap"' + (saleTrustMode !== 'partial' ? ' hidden' : '') + '><label for="sale-trust">거래 직전 신뢰도 (만 단위)</label><div class="ar-inputbox"><input id="sale-trust" value="' + esc(saleTrustDraft) + '" inputmode="decimal" placeholder="예: 5" oninput="__gl.updateSalePreview()"></div></div>';
+    html += '<details><summary class="ar-formnote">실제 수수료 직접 입력 · 계산 안내</summary><label for="sale-fee">게임에 표시된 추가 수수료 (G)</label><div class="ar-inputbox"><input id="sale-fee" value="' + esc(saleFeeDraft) + '" inputmode="numeric" placeholder="비워두면 자동 계산" oninput="__gl.updateSalePreview()"></div><p class="ar-formnote">부족분 × 25% · 1 G 미만은 올림 추정합니다. 실제 금액이 다르면 직접 입력하세요. 수령자 5%는 추가 차감하지 않습니다. 신뢰도는 매 거래 직접 확인하며 게임과 연동되지 않습니다.</p></details>';
+    html += '<p id="sale-preview" class="ar-formnote" role="status"></p><button type="button" class="ar-submit" onclick="__gl.addEntry()">판매 등록</button></div><div class="ar-salesum"><span>이번 주 판매 합계</span><strong>' + fmtGold(totalSold(state.entries)) + ' 골드</strong></div><div class="ar-salesum"><span>신뢰도 추가 수수료</span><strong>' + fmtNum(totalTrustFees(state.entries)) + ' G</strong></div></aside></div>';
     return html;
   }
   function calcControl(id, field, value, label) {
@@ -1851,7 +1929,7 @@ var dashboardPortraits = [];
         '<div class="data-section-desc">계정·기록·설정과 복원한 캐릭터 사진을 저장합니다. API 키는 제외됩니다. 백업에는 개인정보가 있으니 GitHub에 올리지 마세요.</div>' +
         '<div class="data-section-desc">최근 내보내기 요청: ' + (lsGet("backupRequestedAt") ? esc(new Date(lsGet("backupRequestedAt")).toLocaleString("ko-KR")) : '아직 없음') + '<br>다운로드 완료 여부는 다운로드 폴더에서 확인하세요. 가져오기 시 기존 브라우저의 API 키·시트 연결을 유지합니다.</div>' +
         '<div class="data-btn-row"><button class="data-btn" onclick="__gl.exportJSON()">내보내기</button>' +
-        '<button class="data-btn" onclick="__gl.triggerImport()">가져오기</button></div></div>';
+        '<label for="import-mode">가져오기 방식</label><select id="import-mode" class="select-input" onchange="__gl.setImportMode(this.value)"><option value="merge"' + (importMode === "merge" ? ' selected' : '') + '>합치기 · 기존 계정과 없는 주차 유지</option><option value="replace"' + (importMode === "replace" ? ' selected' : '') + '>전체 복원 · 파일에 없는 기록 제거</option></select><button class="data-btn" onclick="__gl.triggerImport()">가져오기</button></div></div>';
       html += '<div class="data-section"><div class="data-section-title">캐릭터 사진 복원</div>' +
         '<div class="data-section-desc">이전 HTML에서 추출한 사진 전용 JSON을 불러옵니다. 골드 기록은 유지하고, 사진은 이 브라우저에만 저장합니다.</div>' +
         '<button class="data-btn" onclick="__gl.triggerPortraitImport()">사진 복원 파일 가져오기</button></div>';
@@ -2017,10 +2095,11 @@ var dashboardPortraits = [];
           var accName = accountsById[en.accountId] ? accountsById[en.accountId].name : "-";
           html += '<div class="entry-row">';
           html += '<div class="entry-date">' + (d.getMonth() + 1) + '/' + d.getDate() + '</div>';
-          html += '<div><span class="entry-account-tag">' + esc(accName) + (en.type === "sell" ? " · 판매" : en.balanceUpdate ? " · 보유액 수정" : "") + '</span></div>';
+          html += '<div><span class="entry-account-tag">' + esc(accName) + (en.type === "sell" ? " · 판매" : en.balanceUpdate ? " · 보유액 수정" : "") + '</span>' + (entryTrustFee(en) ? '<small style="display:block">신뢰도 수수료 ' + fmtNum(entryTrustFee(en)) + ' G · 총 차감 ' + fmtNum(en.amount + entryTrustFee(en)) + ' G</small>' : '') + '</div>';
           if (state.editingEntryId === en.id) {
-            html += '<input id="entry-edit-input" class="entry-edit-input" value="' + manValueForInput(en.amount) + '" inputmode="decimal" ' +
-              'onblur="__gl.commitEditEntry(\'' + en.id + '\')" onkeydown="__gl.keyEnter(event, function(){__gl.commitEditEntry(\'' + en.id + '\')})" />';
+            html += '<div><input id="entry-edit-input" aria-label="기록 금액 (만 골드)" class="entry-edit-input" value="' + manValueForInput(en.amount) + '" inputmode="decimal" onkeydown="__gl.keyEnter(event, function(){__gl.commitEditEntry(\'' + en.id + '\')})" />';
+            if (en.type === 'sell') html += '<label style="display:block">신뢰도 수수료 (G)<input id="entry-edit-fee" class="entry-edit-input" inputmode="numeric" placeholder="비우면 당시 신뢰도로 재계산" value="' + (en.trustFeeManual ? entryTrustFee(en) : '') + '" /></label><small>당시 신뢰도 ' + (en.trustAvailable == null ? '충분' : fmtNum(en.trustAvailable)) + ' · 빈칸은 자동 계산</small>';
+            html += '<button class="data-btn" onclick="__gl.commitEditEntry(\'' + en.id + '\')">저장</button><button class="data-btn" onclick="__gl.cancelEntryEdit()">취소</button></div>';
           } else {
             var isSell = en.type === "sell";
             html += '<div class="entry-amount' + (isSell ? " sell" : "") + '" title="클릭해서 수정" onclick="__gl.startEditEntry(\'' + en.id + '\')">' +
