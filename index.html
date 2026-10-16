@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="application-version" content="1.3.1">
+<meta name="application-version" content="1.3.2">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>골드 장부 · Lost Ark</title>
@@ -413,6 +413,8 @@
   .calc-track{height:4px;background:#3a3831;border-radius:4px;margin-top:16px;overflow:hidden}
   .calc-track>div{height:100%;background:var(--gold)}
   .calc-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:28px 0 12px}
+  .calc-toolbar>div{min-width:0}
+  .calc-toolbar>button{flex-shrink:0;white-space:nowrap}
   .calc-toolbar h3{margin:0;font-size:16px}
   .calc-toolbar h3 span{font-size:12px;color:#a7b0bf;margin-left:6px}
   .calc-toolbar p{font-size:12px;color:#a7b0bf;margin:6px 0 0}
@@ -1188,7 +1190,7 @@
         endKey: fmtKey(w.end),
         target: target,
         earned: earned,
-        status: earned >= target ? "달성" : "미달",
+        status: !(w.target > 0) ? "목표 미설정" : earned >= target ? "달성" : "미달",
         byAccount: byAccount
       };
     });
@@ -1867,7 +1869,7 @@ var dashboardPortraits = [];
     // Background sync must not replace an active calculator draft or its caret.
     if (itemEdit && document.activeElement && document.activeElement.id === "calc-editor") return;
     var activeId = document.activeElement && document.activeElement.id;
-    if ((activeId === "carried-earned-input" && state.editingCarriedAccountId !== null) || (activeId === "target-input" && state.editingTarget) || (activeId === "entry-edit-input" && state.editingEntryId !== null) || (activeId === "card-bill-input" && state.editingCardBill) || (activeId === "cash-input" && state.editingCash)) return;
+    if ((activeId === "carried-earned-input" && state.editingCarriedAccountId !== null) || (activeId === "target-input" && state.editingTarget) || ((activeId === "entry-edit-input" || activeId === "entry-edit-fee") && state.editingEntryId !== null) || (activeId === "card-bill-input" && state.editingCardBill) || (activeId === "cash-input" && state.editingCash)) return;
     if (isRendering) {
       renderQueued = true;
       return;
@@ -1922,7 +1924,7 @@ var dashboardPortraits = [];
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">' +
         '<select id="item-price-interval" class="select-input" style="flex:1"><option value="30"' + (state.itemPriceUpdateInterval === 30 ? ' selected' : '') + '>30분마다</option><option value="60"' + (state.itemPriceUpdateInterval === 60 ? ' selected' : '') + '>1시간마다</option></select>' +
         '<button class="data-btn" onclick="__gl.saveItemPriceApi()">저장 · 즉시 갱신</button></div>' +
-        '<div style="font-size:11.5px;color:var(--text-muted)">설정한 주기로 자동 갱신 · ' + esc(formatPriceUpdatedAt(state.itemPriceLastUpdated)) + (state.itemPriceUpdating ? ' · 갱신 중…' : '') + '</div>' +
+        '<div style="font-size:11.5px;color:var(--text-muted)">설정한 주기로 자동 갱신 · ' + esc(priceUpdateSummary()) + (state.itemPriceUpdating ? ' · 갱신 중…' : '') + '</div>' +
         (state.itemPriceError ? '<div style="font-size:11.5px;color:var(--rust);margin-top:6px">' + esc(state.itemPriceError) + '</div>' : '') + '</div>';
 
       html += '<div class="data-section"><div class="data-section-title">백업 (JSON)</div>' +
@@ -2098,12 +2100,12 @@ var dashboardPortraits = [];
           html += '<div><span class="entry-account-tag">' + esc(accName) + (en.type === "sell" ? " · 판매" : en.balanceUpdate ? " · 보유액 수정" : "") + '</span>' + (entryTrustFee(en) ? '<small style="display:block">신뢰도 수수료 ' + fmtNum(entryTrustFee(en)) + ' G · 총 차감 ' + fmtNum(en.amount + entryTrustFee(en)) + ' G</small>' : '') + '</div>';
           if (state.editingEntryId === en.id) {
             html += '<div><input id="entry-edit-input" aria-label="기록 금액 (만 골드)" class="entry-edit-input" value="' + manValueForInput(en.amount) + '" inputmode="decimal" onkeydown="__gl.keyEnter(event, function(){__gl.commitEditEntry(\'' + en.id + '\')})" />';
-            if (en.type === 'sell') html += '<label style="display:block">신뢰도 수수료 (G)<input id="entry-edit-fee" class="entry-edit-input" inputmode="numeric" placeholder="비우면 당시 신뢰도로 재계산" value="' + (en.trustFeeManual ? entryTrustFee(en) : '') + '" /></label><small>당시 신뢰도 ' + (en.trustAvailable == null ? '충분' : fmtNum(en.trustAvailable)) + ' · 빈칸은 자동 계산</small>';
+            if (en.type === 'sell') html += '<label style="display:block">신뢰도 수수료 (G)<input id="entry-edit-fee" class="entry-edit-input" inputmode="numeric" placeholder="비우면 당시 신뢰도로 재계산" value="' + (en.trustFeeManual ? entryTrustFee(en) : '') + '" onkeydown="__gl.keyEnter(event, function(){__gl.commitEditEntry(\'' + en.id + '\')})" /></label><small>당시 신뢰도 ' + (en.trustAvailable == null ? '충분' : fmtNum(en.trustAvailable)) + ' · 빈칸은 자동 계산</small>';
             html += '<button class="data-btn" onclick="__gl.commitEditEntry(\'' + en.id + '\')">저장</button><button class="data-btn" onclick="__gl.cancelEntryEdit()">취소</button></div>';
           } else {
             var isSell = en.type === "sell";
-            html += '<div class="entry-amount' + (isSell ? " sell" : "") + '" title="클릭해서 수정" onclick="__gl.startEditEntry(\'' + en.id + '\')">' +
-              (isSell || en.amount < 0 ? "-" : "+") + fmtGold(Math.abs(en.amount)) + '</div>';
+            html += '<button type="button" class="entry-amount' + (isSell ? " sell" : "") + '" aria-label="' + (isSell ? '판매 금액 수정' : '보유액 변경 기록 수정') + '" title="클릭해서 수정" onclick="__gl.startEditEntry(\'' + en.id + '\')">' +
+              (isSell || en.amount < 0 ? "-" : "+") + fmtGold(Math.abs(en.amount)) + '</button>';
           }
           html += '<button class="del-btn" onclick="__gl.deleteEntry(\'' + en.id + '\')" title="삭제">×</button>';
           html += '</div>';
@@ -2120,12 +2122,13 @@ var dashboardPortraits = [];
         if (state.design === "dashboard") html += '<div class="history-columns" aria-hidden="true"><span>주간 기간</span><span>목표 / 보유 골드</span><span>달성 상태</span></div>';
         visible.forEach(function (w) {
           var historyTarget = effectiveWeekTarget(w.target, w.entries);
-          var ok = w.earned >= historyTarget;
+          var hasGoal = w.target > 0;
+          var ok = hasGoal && w.earned >= historyTarget;
           html += '<div class="history-row">';
           html += '<div class="history-period">' + fmtShort(w.start) + ' ~ ' + fmtShort(w.end) + '</div>';
           html += '<div class="history-nums"><span style="color:var(--text-muted)">목표 ' + fmtGold(historyTarget) + '</span>' +
             '<span style="color:var(--gold)">보유 ' + fmtGold(w.earned) + '</span></div>';
-          html += '<div class="badge ' + (ok ? "badge-ok" : "badge-miss") + '">' + (ok ? "달성" : ("미달 " + fmtGold(historyTarget - w.earned))) + '</div>';
+          html += '<div class="badge ' + (!hasGoal ? "" : ok ? "badge-ok" : "badge-miss") + '">' + (!hasGoal ? "목표 미설정" : ok ? "달성" : ("미달 " + fmtGold(historyTarget - w.earned))) + '</div>';
           html += '</div>';
         });
         if (state.history.length > 6) {
